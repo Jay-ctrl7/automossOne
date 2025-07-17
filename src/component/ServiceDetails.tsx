@@ -125,21 +125,29 @@ const ServiceDetails = () => {
     }
   };
 
-  const fetchCarServiceById = async (categoryId) => {
-    if (!categoryId) return;
+  const fetchServicesWithFilters = async (categoryIds = []) => {
     try {
       setLoading(true);
       setError(null);
+      
+      const requestData = {
+        city_id: activeFilters.city,
+        min: activeFilters.price[0],
+        max: activeFilters.price[1],
+        car_size: activeFilters.carSizes,
+        distance: activeFilters.distance,
+      };
+
+      // Add category filter only if categories are selected
+      if (categoryIds.length > 0) {
+        requestData.category_id = Array.isArray(categoryIds) 
+          ? categoryIds.join(',') 
+          : categoryIds;
+      }
+
       const { data } = await axios.post(
         ENDPOINTS.master.packageMaster.list,
-        {
-          city_id: activeFilters.city,
-          category_id: categoryId,
-          min: activeFilters.price[0],
-          max: activeFilters.price[1],
-          car_size: activeFilters.carSizes,
-          distance: activeFilters.distance,
-        }
+        requestData
       );
       
       if (data.status === 1) {
@@ -151,17 +159,16 @@ const ServiceDetails = () => {
         setExpandedCards(initialExpandedState);
         
         if (serviceData.length === 0) {
-          setError('No services available for this category in your area');
+          setError('No services available for the selected filters in your area');
         }
       } else {
-        setError(data.message || 'No services found for this category');
+        setError(data.message || 'No services found');
         setDetails([]);
         setFilteredDetails([]);
       }
     } catch (err) {
-      console.log('Error fetching category services:', err);
-      console.log(err.response?.data );
-      setError('Unable to load services for this category. Please try again.');
+      console.error('Error fetching services:', err);
+      setError('Unable to load services. Please try again.');
       setDetails([]);
       setFilteredDetails([]);
     } finally {
@@ -236,7 +243,9 @@ const ServiceDetails = () => {
     if (categories.length > 1) {
       if (sName && sName !== 'All' && sId) {
         const exists = categories.some(c => c.name === sName);
-        exists ? fetchCarServiceById(sId) : fetchAllServices();
+        exists ? fetchServicesWithFilters(sId) : fetchAllServices();
+      } else if (activeFilters.filterActive && activeFilters.categories.length > 0) {
+        fetchServicesWithFilters(activeFilters.categories);
       } else {
         fetchAllServices();
       }
@@ -249,8 +258,8 @@ const ServiceDetails = () => {
     setError(null);
     const cat = categories.find(c => c.name === categoryName);
     
-    // If category is selected in filters, clear it
-    if (activeFilters.categories.length > 0) {
+    // If coming from filters, reset filter state but keep other filters
+    if (activeFilters.filterActive) {
       setActiveFilters(prev => ({
         ...prev,
         categories: [],
@@ -262,7 +271,7 @@ const ServiceDetails = () => {
     if (categoryName === 'All' || !cat || cat.id === 'all') {
       fetchAllServices();
     } else {
-      fetchCarServiceById(cat.id);
+      fetchServicesWithFilters(cat.id);
     }
   };
 
@@ -270,16 +279,28 @@ const ServiceDetails = () => {
     setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
 
   const handleFilterApply = (filters) => {
-    setActiveFilters({
+    const newFilters = {
       ...filters,
-      filterActive: true
-    });
-    setSelectedCategory(filters.categories.length > 0 ? 'Filtered' : 'All');
+      filterActive: filters.categories.length > 0 || 
+                   filters.subcategories.length > 0 ||
+                   filters.price[0] !== 100 || 
+                   filters.price[1] !== 10000 ||
+                   filters.carSizes.length !== 4 ||
+                   filters.distance !== 50
+    };
+    
+    setActiveFilters(newFilters);
+    
+    // Set category name based on filters
+    setSelectedCategory(newFilters.filterActive ? 'Filtered Results' : 'All');
+    
+    // Fetch services with new filters
+    fetchServicesWithFilters(newFilters.categories);
     setShowFilterModal1(false);
   };
 
   const handleResetFilters = () => {
-    setActiveFilters({
+    const resetFilters = {
       city: 19,
       distance: 50,
       price: [100, 10000],
@@ -287,18 +308,23 @@ const ServiceDetails = () => {
       subcategories: [],
       carSizes: ['small', 'medium', 'extra large', 'premium'],
       filterActive: false,
-    });
+    };
+    
+    setActiveFilters(resetFilters);
     setSelectedCategory('All');
+    fetchAllServices();
   };
 
   const handleRetry = () => {
     setError(null);
-    if (selectedCategory === 'All') {
+    if (activeFilters.filterActive) {
+      fetchServicesWithFilters(activeFilters.categories);
+    } else if (selectedCategory === 'All') {
       fetchAllServices();
     } else {
       const cat = categories.find(c => c.name === selectedCategory);
       if (cat && cat.id !== 'all') {
-        fetchCarServiceById(cat.id);
+        fetchServicesWithFilters(cat.id);
       } else {
         fetchAllServices();
       }
@@ -410,6 +436,13 @@ const ServiceDetails = () => {
                 size={20} 
                 color={activeFilters.filterActive ? '#ff4444' : '#888'} />
         </TouchableOpacity>
+        {activeFilters.filterActive && (
+          <TouchableOpacity 
+            style={styles.resetButton}
+            onPress={handleResetFilters}>
+            <Text style={styles.resetButtonText}>Reset All</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Categories */}
@@ -512,6 +545,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+  },
+  resetButton: {
+    marginLeft: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#f5f5f5',
+  },
+  resetButtonText: {
+    color: '#ff4444',
+    fontSize: 14,
+    fontWeight: '500',
   },
   categoryScrollContent: { paddingHorizontal: 16 },
   categoryItem: {
