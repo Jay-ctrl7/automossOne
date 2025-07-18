@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, act } from 'react';
 import { useRoute } from '@react-navigation/native';
 import axios from 'axios';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -21,6 +21,7 @@ import DropDownPicker from 'react-native-dropdown-picker';
 import CategoryDropdownCheckbox from './CategoryDropdownCheckbox';
 import FilterModalCar from './FilterModalCar';
 import { ENDPOINTS } from '../config/api';
+import LottieView from 'lottie-react-native';
 
 const ServiceDetails = () => {
   /* ------------------ STATE ------------------ */
@@ -43,7 +44,7 @@ const ServiceDetails = () => {
   });
   const [categoriesAndSubCategories, setCategoriesAndSubCategories] = useState([]);
   const [showFilterModal1, setShowFilterModal1] = useState(false);
-  
+
   // Active filters state
   const [activeFilters, setActiveFilters] = useState({
     city: 19, // Default to Bhubaneswar
@@ -62,13 +63,13 @@ const ServiceDetails = () => {
   /* ------------------ SCROLL TO CATEGORY ------------------ */
   const scrollToSelectedCategory = useCallback(() => {
     if (!selectedCategory || !categoryScrollRef.current) return;
-    
+
     const index = categories.findIndex(cat => cat.name === selectedCategory);
     if (index === -1) return;
 
     const itemWidth = 100;
     const position = index * (itemWidth + 10);
-    
+
     categoryScrollRef.current.scrollTo({
       x: position,
       animated: true,
@@ -83,9 +84,11 @@ const ServiceDetails = () => {
     const timer = setTimeout(() => {
       scrollToSelectedCategory();
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, []);
+
+
 
   /* ------------------ API HELPERS ------------------ */
   const fetchAllServices = async () => {
@@ -102,7 +105,7 @@ const ServiceDetails = () => {
           distance: activeFilters.distance,
         }
       );
-      
+
       if (data.status === 1) {
         const serviceData = data.data || [];
         setDetails(serviceData);
@@ -129,46 +132,98 @@ const ServiceDetails = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const requestData = {
-        city_id: activeFilters.city,
-        min: activeFilters.price[0],
-        max: activeFilters.price[1],
-        car_size: activeFilters.carSizes,
-        distance: activeFilters.distance,
+
+      // Convert categoryIds to array if it's a single ID
+      let finalCategoryIds = [];
+      if (Array.isArray(categoryIds)) {
+        finalCategoryIds = categoryIds;
+      } else if (categoryIds) {
+        // If it's a single ID, convert to array
+        finalCategoryIds = [categoryIds];
+      }
+
+      // If no categoryIds passed, use activeFilters.categories
+      if (finalCategoryIds.length === 0) {
+        finalCategoryIds = activeFilters.categories;
+      }
+
+      console.log("Category IDs being used:", finalCategoryIds);
+      console.log("Current Filters:", {
+        city: activeFilters.city,
+        categories: finalCategoryIds,
+        priceRange: activeFilters.price,
+        carSizes: activeFilters.carSizes,
+        distance: activeFilters.distance
+      });
+
+      // Prepare request body exactly as API expects
+      const requestBody = {
+        city_id: String(activeFilters.city), // Keep as string
+        min: Number(activeFilters.price[0]) || 100,
+        max: Number(activeFilters.price[1]) || 10000,
+        car_size: Array.isArray(activeFilters.carSizes)
+          ? activeFilters.carSizes
+          : ["small", "medium", "extra large", "premium"], // Keep as array
+        distance: Number(activeFilters.distance) || 50
       };
 
-      // Add category filter only if categories are selected
-      if (categoryIds.length > 0) {
-        requestData.category_id = Array.isArray(categoryIds) 
-          ? categoryIds.join(',') 
-          : categoryIds;
+      // Add category IDs if they exist - convert to comma-separated string
+      if (finalCategoryIds.length > 0) {
+        // Convert all IDs to strings and join with comma
+        requestBody.category_id = finalCategoryIds.map(id => String(id)).join(',');
       }
 
-      const { data } = await axios.post(
+      // Debug the final request payload
+      console.log("API Request Payload:", JSON.stringify(requestBody, null, 2));
+
+      // Make the API call
+      const response = await axios.post(
         ENDPOINTS.master.packageMaster.list,
-        requestData
+        requestBody,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000
+        }
       );
-      
-      if (data.status === 1) {
-        const serviceData = data.data || [];
+
+      // Handle response
+      if (response.data.status === 1) {
+        const serviceData = response.data.data || [];
+
         setDetails(serviceData);
         setFilteredDetails(serviceData);
-        const initialExpandedState = {};
-        serviceData.forEach(item => (initialExpandedState[item.id] = false));
-        setExpandedCards(initialExpandedState);
-        
+
+        const newExpandedState = {};
+        serviceData.forEach(item => {
+          newExpandedState[item.id] = false;
+        });
+        setExpandedCards(newExpandedState);
+
         if (serviceData.length === 0) {
-          setError('No services available for the selected filters in your area');
+          setError('No services found matching your filters');
+        } else {
+          setError(null);
         }
       } else {
-        setError(data.message || 'No services found');
-        setDetails([]);
-        setFilteredDetails([]);
+        throw new Error(response.data.message || 'Invalid API response');
       }
-    } catch (err) {
-      console.error('Error fetching services:', err);
-      setError('Unable to load services. Please try again.');
+    } catch (error) {
+      console.error('API Error:', {
+        message: error.message,
+        response: error.response?.data,
+        config: error.config
+      });
+
+      if (error.response) {
+        setError(error.response.data.message || 'Server error occurred');
+      } else if (error.request) {
+        setError('Network error - please check your connection');
+      } else {
+        setError(error.message || 'Failed to fetch services');
+      }
+
       setDetails([]);
       setFilteredDetails([]);
     } finally {
@@ -257,7 +312,7 @@ const ServiceDetails = () => {
     setSelectedCategory(categoryName);
     setError(null);
     const cat = categories.find(c => c.name === categoryName);
-    
+
     // If coming from filters, reset filter state but keep other filters
     if (activeFilters.filterActive) {
       setActiveFilters(prev => ({
@@ -267,7 +322,7 @@ const ServiceDetails = () => {
         filterActive: false
       }));
     }
-    
+
     if (categoryName === 'All' || !cat || cat.id === 'all') {
       fetchAllServices();
     } else {
@@ -281,21 +336,30 @@ const ServiceDetails = () => {
   const handleFilterApply = (filters) => {
     const newFilters = {
       ...filters,
-      filterActive: filters.categories.length > 0 || 
-                   filters.subcategories.length > 0 ||
-                   filters.price[0] !== 100 || 
-                   filters.price[1] !== 10000 ||
-                   filters.carSizes.length !== 4 ||
-                   filters.distance !== 50
+      filterActive: filters.categories.length > 0 ||
+        filters.subcategories.length > 0 ||
+        filters.price[0] !== 100 ||
+        filters.price[1] !== 10000 ||
+        filters.carSizes.length !== 4 ||
+        filters.distance !== 50
     };
-    
+
+    // Update activeFilters first
     setActiveFilters(newFilters);
-    
+
     // Set category name based on filters
     setSelectedCategory(newFilters.filterActive ? 'Filtered Results' : 'All');
-    
-    // Fetch services with new filters
-    fetchServicesWithFilters(newFilters.categories);
+
+    // Use setTimeout to ensure state is updated before API call
+    setTimeout(() => {
+      // Fetch services with the new filter categories
+      if (newFilters.categories.length > 0) {
+        fetchServicesWithFilters(newFilters.categories);
+      } else {
+        fetchAllServices();
+      }
+    }, 100);
+
     setShowFilterModal1(false);
   };
 
@@ -309,7 +373,7 @@ const ServiceDetails = () => {
       carSizes: ['small', 'medium', 'extra large', 'premium'],
       filterActive: false,
     };
-    
+
     setActiveFilters(resetFilters);
     setSelectedCategory('All');
     fetchAllServices();
@@ -331,6 +395,8 @@ const ServiceDetails = () => {
     }
   };
 
+
+
   /* ------------------ SUB-COMPONENTS ------------------ */
   const CategoryItem = ({ item, isSelected, onPress }) => (
     <TouchableOpacity
@@ -345,8 +411,11 @@ const ServiceDetails = () => {
 
   const ServiceCard = ({ item }) => (
     <View style={styles.cardContainer}>
-      <View style={styles.serviceTag}>
-        <Text style={styles.serviceTagText}>{item.garage || 'Service'}</Text>
+      <View style={styles.serviceHeader}>
+        <View style={styles.serviceTag}>
+          <Text style={styles.serviceTagText}>{item.garage || 'Service'}</Text>
+        </View>
+       
       </View>
       <View style={styles.cardContent}>
         <View style={styles.leftContent}>
@@ -365,8 +434,50 @@ const ServiceDetails = () => {
             </TouchableOpacity>
           )}
           <View style={styles.priceContainer}>
-            <Text style={styles.currentPrice}>₹{item.offer_price || '0'}</Text>
             <Text style={styles.originalPrice}>₹{item.mrp_price || '0'}</Text>
+            <Text style={styles.currentPrice}> ₹{item.offer_price || '0'}</Text>
+            <Text style={styles.percentOff}>{Math.round((1 - item.offer_price / item.mrp_price) * 100)}% OFF</Text>
+            <View style={styles.wheelContainer}>
+              <Text style={styles.WheelText}>20</Text>
+              {/* <LottieView
+                source={require('../assets/lottie/wheel.json')}
+                autoPlay
+                loop={true}
+                style={{ width: 25 , height: 25 }}
+                onAnimationFailure={(error) => console.error('Lottie error:', error)}
+              /> */}
+              <Image style={{width:20,height:20}} source={require('../assets/icon/wheel1.png')} />
+
+            </View>
+          </View>
+          <View style={styles.vehicleSizeContainer}>
+            {[
+              { apiValue: 'small', display: 'SM' },
+              { apiValue: 'medium', display: 'MD' },
+              { apiValue: 'large', display: 'LG' },
+              { apiValue: 'extra large', display: 'XL' },
+              { apiValue: 'premium', display: 'PM' },
+
+            ].map(({ apiValue, display }) => {
+              return (
+                <TouchableOpacity
+                  key={apiValue}
+                  style={[
+                    styles.sizeButton,
+                    item.car_size === apiValue && styles.sizeButtonActive
+                  ]}
+                  activeOpacity={0.7}>
+                  <Text style={[
+                    styles.sizeButtonText,
+                    item.car_size === apiValue && styles.sizeButtonTextActive
+                  ]}>
+                    {display}
+
+                  </Text>
+
+                </TouchableOpacity>
+              )
+            })}
           </View>
         </View>
         <View style={styles.rightContent}>
@@ -384,7 +495,7 @@ const ServiceDetails = () => {
             </View>
           </View>
           <TouchableOpacity style={styles.addButton}>
-            <Text style={styles.addButtonText}>Add +</Text>
+            <Text style={styles.addButtonText}>Book Now</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -398,8 +509,8 @@ const ServiceDetails = () => {
         {error || 'No services found'}
       </Text>
       <Text style={styles.emptyStateSubtext}>
-        {error ? 'Please try again or contact support if the problem persists.' : 
-         'Try adjusting your search criteria or browse other categories'}
+        {error ? 'Please try again or contact support if the problem persists.' :
+          'Try adjusting your search criteria or browse other categories'}
       </Text>
       {error && (
         <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
@@ -432,12 +543,12 @@ const ServiceDetails = () => {
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setShowFilterModal1(true)}>
-          <Icon name={activeFilters.filterActive ? 'filter-alt' : 'filter-alt-off'} 
-                size={20} 
-                color={activeFilters.filterActive ? '#ff4444' : '#888'} />
+          <Icon name={activeFilters.filterActive ? 'filter-alt' : 'filter-alt-off'}
+            size={20}
+            color={activeFilters.filterActive ? '#ff4444' : '#888'} />
         </TouchableOpacity>
         {activeFilters.filterActive && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.resetButton}
             onPress={handleResetFilters}>
             <Text style={styles.resetButtonText}>Reset All</Text>
@@ -601,6 +712,11 @@ const styles = StyleSheet.create({
     elevation: 3,
     overflow: 'hidden',
   },
+  serviceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between'
+
+  },
   serviceTag: {
     backgroundColor: '#ff4444',
     paddingHorizontal: 12,
@@ -609,6 +725,17 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 8,
   },
   serviceTagText: { color: 'white', fontSize: 12, fontWeight: '500' },
+  wheelContainer: {
+    flexDirection: 'row',
+    marginLeft: 10
+
+  },
+WheelText:{
+    color:'green',
+    fontSize:20,
+
+
+  },
   cardContent: { flexDirection: 'row', padding: 16 },
   leftContent: { flex: 1, paddingRight: 16 },
   serviceName: {
@@ -617,6 +744,7 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 12,
   },
+
   info: {
     fontSize: 14,
     color: '#666',
@@ -641,6 +769,46 @@ const styles = StyleSheet.create({
     color: '#888',
     textDecorationLine: 'line-through',
   },
+  percentOff: {
+    color: '#ff4444',
+    fontWeight: 'bold',
+    fontSize: 11,
+    marginLeft: 0,
+  },
+  vehicleSizeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    marginBottom: 8,
+    
+  },
+  sizeButton: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginRight:5,
+    backgroundColor: '#FFFFFF',
+    minWidth: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sizeButtonActive: {
+    borderColor: '#3A7BD5',
+    backgroundColor: '#E3F2FD',
+  },
+  sizeButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#666666',
+  },
+  sizeButtonTextActive: {
+    color: '#3A7BD5',
+    fontWeight: '600',
+  },
+
+
   rightContent: { alignItems: 'center' },
   imageContainer: { position: 'relative', marginBottom: 12 },
   serviceImage: {
