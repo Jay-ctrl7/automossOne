@@ -415,7 +415,22 @@ const ServiceDetails = () => {
         <View style={styles.serviceTag}>
           <Text style={styles.serviceTagText}>{item.garage || 'Service'}</Text>
         </View>
-       
+          <View style={styles.wheelContainer}>
+              <Text style={styles.wheelText}>20</Text>
+              {/* <Image
+                style={styles.wheelIcon}
+                source={require('../assets/icon/wheel1.png')}
+              /> */}
+               <LottieView
+                source={require('../assets/lottie/wheel.json')}
+                autoPlay
+                speed={0.5}
+                loop={true}
+                style={{ width: 20 , height: 20 }}
+                onAnimationFailure={(error) => console.error('Lottie error:', error)}
+              />
+            </View>
+
       </View>
       <View style={styles.cardContent}>
         <View style={styles.leftContent}>
@@ -437,18 +452,13 @@ const ServiceDetails = () => {
             <Text style={styles.originalPrice}>₹{item.mrp_price || '0'}</Text>
             <Text style={styles.currentPrice}> ₹{item.offer_price || '0'}</Text>
             <Text style={styles.percentOff}>{Math.round((1 - item.offer_price / item.mrp_price) * 100)}% OFF</Text>
-            <View style={styles.wheelContainer}>
-              <Text style={styles.WheelText}>20</Text>
-              {/* <LottieView
-                source={require('../assets/lottie/wheel.json')}
-                autoPlay
-                loop={true}
-                style={{ width: 25 , height: 25 }}
-                onAnimationFailure={(error) => console.error('Lottie error:', error)}
-              /> */}
-              <Image style={{width:20,height:20}} source={require('../assets/icon/wheel1.png')} />
-
-            </View>
+            {/* <View style={styles.wheelContainer}>
+              <Text style={styles.wheelText}>20</Text>
+              <Image
+                style={styles.wheelIcon}
+                source={require('../assets/icon/wheel1.png')}
+              />
+            </View> */}
           </View>
           <View style={styles.vehicleSizeContainer}>
             {[
@@ -725,16 +735,30 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 8,
   },
   serviceTagText: { color: 'white', fontSize: 12, fontWeight: '500' },
+
   wheelContainer: {
     flexDirection: 'row',
-    marginLeft: 10
-
+    alignItems: 'center',
+    backgroundColor: '#F0F9F0', // light green background
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    alignSelf: 'flex-start', // only take necessary width
+    marginTop: 2,
+    marginRight:2,
+    borderWidth: 1,
+    borderColor: '#D0E8D0', // subtle border
   },
-WheelText:{
-    color:'green',
-    fontSize:20,
-
-
+  wheelText: {
+    color: '#2E7D32', // dark green
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  wheelIcon: {
+    width: 16,
+    height: 16,
+    tintColor: '#2E7D32', // matches text color
   },
   cardContent: { flexDirection: 'row', padding: 16 },
   leftContent: { flex: 1, paddingRight: 16 },
@@ -780,7 +804,7 @@ WheelText:{
     justifyContent: 'space-between',
     marginTop: 12,
     marginBottom: 8,
-    
+
   },
   sizeButton: {
     borderWidth: 1,
@@ -788,7 +812,7 @@ WheelText:{
     borderRadius: 16,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    marginRight:5,
+    marginRight: 5,
     backgroundColor: '#FFFFFF',
     minWidth: 40,
     alignItems: 'center',
