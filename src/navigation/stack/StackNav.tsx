@@ -7,13 +7,22 @@ import SplashScreen from '../../screen/SplashScreen';
 import OtpVerification from '../../screen/OtpVerification';
 import TabNav from '../TabNavigation/TabNav';
 import TopCarServices from '../../component/TopCarServices';
-import ServiceDetails from '../../component/ServiceDetails';
+import ServiceList from '../../component/ServiceList';
 import Accessories from '../../component/Accessories';
+import { StatusBar } from 'react-native';
+import ServiceDetails from '../../component/ServiceDetails';
+
 const Stack = createNativeStackNavigator();
 
 const StackNav = () => {
   return (
+
+
     <NavigationContainer>
+          <StatusBar 
+        backgroundColor="lightblue" 
+        barStyle="dark-content"
+      />
       <Stack.Navigator
         initialRouteName="Splash"  // Explicit initial route
         screenOptions={{
@@ -63,10 +72,10 @@ const StackNav = () => {
           }}
         />
         <Stack.Screen
-          name="ServiceDetails"
-          component={ServiceDetails} // Replace with actual service detail component
+          name="ServiceList"
+          component={ServiceList} // Replace with actual service detail component
           options={{
-            title: 'Service Details', // Custom header title
+            title: 'Service List', // Custom header title
             headerShown: true,         // Show header for ServiceDetails
             animation: 'slide_from_right' // Custom animation for this screen
           }}
@@ -80,8 +89,17 @@ const StackNav = () => {
           animation: 'slide_from_right' // Custom animation for this screen
         }}
         />
+        <Stack.Screen 
+        name='ServiceDetails'
+        component={ServiceDetails}
+        options={{title:"Service Details",
+          headerShown:false,
+          animation:'slide_from_right'
+        }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
+ 
   );
 };
 

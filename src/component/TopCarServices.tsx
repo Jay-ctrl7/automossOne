@@ -43,7 +43,7 @@ const TopCarServices = () => {
         return (
             <TouchableOpacity 
                 style={[styles.itemContainer, { width: itemWidth }]}
-                onPress={() => navigation.navigate('ServiceDetails', { sId: item.id, sName:item.name })}
+                onPress={() => navigation.navigate('ServiceList', { sId: item.id, sName:item.name })}
             >
                 <View style={styles.iconContainer}>
                     <Image source={{ uri: item.thumb }} style={styles.icon} />
