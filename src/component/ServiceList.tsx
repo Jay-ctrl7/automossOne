@@ -24,6 +24,7 @@ import { ENDPOINTS } from '../config/api';
 import LottieView from 'lottie-react-native';
 import {StatusBar} from 'react-native'
 import { useNavigation } from '@react-navigation/native';
+import { getAuthData } from '../utils/AuthStore';
 
 
 const ServiceList = () => {
@@ -99,6 +100,7 @@ const ServiceList = () => {
 const fetchAllServices = async () => {
   try {
     setLoading(true);
+    
     const { data } = await axios.post(ENDPOINTS.master.packageMaster.list, {
       city_id: activeFilters.city,
       min: activeFilters.price[0],
@@ -140,7 +142,7 @@ const fetchAllServices = async () => {
       setFilteredDetails(servicesList);
     }
   } catch (err) {
-    console.error("Error fetching services:", err);
+    console.log("Error fetching services:", err);
     setError("Failed to load services");
   } finally {
     setLoading(false);
@@ -224,7 +226,7 @@ const fetchServicesWithFilters = async (categoryIds = []) => {
       throw new Error(response.data?.message || 'Invalid API response');
     }
   } catch (error) {
-    console.error('Filter error:', {
+    console.log('Filter error:', {
       message: error.message,
       response: error.response?.data,
       config: error.config
@@ -271,7 +273,7 @@ const fetchServicesWithFilters = async (categoryIds = []) => {
         }
       }
     } catch (err) {
-      console.error('Error fetching categories:', err);
+      console.log('Error fetching categories:', err);
     }
   };
 
@@ -280,7 +282,7 @@ const fetchServicesWithFilters = async (categoryIds = []) => {
       const { data } = await axios.get(ENDPOINTS.master.city);
       if (data.status === 1) setCities(data.data);
     } catch (err) {
-      console.error('Error fetching cities:', err);
+      console.log('Error fetching cities:', err);
     }
   };
 
@@ -467,7 +469,7 @@ const fetchServicesWithFilters = async (categoryIds = []) => {
                 speed={0.5}
                 loop={true}
                 style={{ width: 20 , height: 20 }}
-                onAnimationFailure={(error) => console.error('Lottie error:', error)}
+                onAnimationFailure={(error) => console.log('Lottie error:', error)}
               />
             </View>
 

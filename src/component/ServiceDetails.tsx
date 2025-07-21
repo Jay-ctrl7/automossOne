@@ -1,17 +1,18 @@
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  StyleSheet, 
-  Image, 
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Image,
   useWindowDimensions,
   FlatList,
   TouchableOpacity
 } from 'react-native';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { ENDPOINTS } from '../config/api';
 import axios from 'axios';
+import LottieView from 'lottie-react-native';
 
 const ServiceDetails = () => {
   const [loading, setLoading] = useState(false);
@@ -24,20 +25,19 @@ const ServiceDetails = () => {
   const { width: windowWidth } = useWindowDimensions();
   const scrollInterval = useRef();
 
+  const navigation=useNavigation();
+
   useEffect(() => {
     fetchServiceDetails();
     return () => {
-      // Clean up on unmount
       if (scrollInterval.current) clearInterval(scrollInterval.current);
     };
   }, [itemId, activeFilters]);
 
   // Auto-scroll effect
   useEffect(() => {
-        console.log("Details data",details);
-
     if (!autoScrollEnabled || !details) return;
-    
+
     const images = getCarouselImages();
     if (images.length <= 1) return;
 
@@ -48,7 +48,7 @@ const ServiceDetails = () => {
         animated: true,
       });
       setCurrentImageIndex(nextIndex);
-    }, 3000); // Change slide every 3 seconds
+    }, 3000);
 
     return () => {
       if (scrollInterval.current) clearInterval(scrollInterval.current);
@@ -87,11 +87,12 @@ const ServiceDetails = () => {
         });
 
         groupedService.selectedSize = groupedService.availableSizes[0];
-        groupedService.displayPrice = 
+        groupedService.displayPrice =
           groupedService.pricing[groupedService.availableSizes[0]].offer_price;
 
+        console.log("Service details loaded:", groupedService); // Single log
         setDetails(groupedService);
-        setAutoScrollEnabled(true); // Enable auto-scroll when data loads
+        setAutoScrollEnabled(true);
       }
     } catch (err) {
       console.error("Error fetching service details:", err);
@@ -100,10 +101,9 @@ const ServiceDetails = () => {
     }
   };
 
-  // Memoize this function to prevent unnecessary recalculations
   const getCarouselImages = useCallback(() => {
     if (!details) return [];
-    
+
     const images = [];
     for (let i = 1; i <= 4; i++) {
       const pic = details[`pic${i}`];
@@ -116,45 +116,49 @@ const ServiceDetails = () => {
     const contentOffset = event.nativeEvent.contentOffset.x;
     const index = Math.round(contentOffset / windowWidth);
     setCurrentImageIndex(index);
-    
-    // Pause auto-scroll on user interaction
+
     setAutoScrollEnabled(false);
     if (scrollInterval.current) clearInterval(scrollInterval.current);
-    
-    // Resume auto-scroll after 5 seconds of inactivity
+
     const timeout = setTimeout(() => {
       setAutoScrollEnabled(true);
     }, 5000);
-    
+
     return () => clearTimeout(timeout);
+  };
+
+  const handleSizeSelect = (size) => {
+    setDetails(prev => ({
+      ...prev,
+      selectedSize: size,
+      displayPrice: prev.pricing[size].offer_price
+    }));
   };
 
   const renderCarouselItem = ({ item }) => (
     <View style={{ width: windowWidth }}>
-      <Image 
-        source={{ uri: item }} 
+      <Image
+        source={{ uri: item }}
         style={styles.carouselImage}
         resizeMode="cover"
       />
     </View>
   );
-   const handleSizeSelect=(size)=>{
-      const updatedDetails=details.map((service)=>{
-        if(service.id===item.id){
-          return{
-               ...service,
-          selectedSize:size,
-          displayPrice:service.pricing[size].offer_price,
 
-          }
-       
-        }
-        return service;
-      });
-      setDetails(updatedDetails);
-      setFilteredDetails(updatedDetails);
+  const sizeLabels = {
+    small: "SM",
+    medium: "MD",
+    large: "LG",
+    "extra large": "XL",
+    premium: "PM",
+  };
 
-    };
+  const handelPayment=()=>{
+    navigation.navigate('CustomerKyc',{
+      city:activeFilters.city
+    })
+
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -173,9 +177,9 @@ const ServiceDetails = () => {
               showsHorizontalScrollIndicator={false}
               onScroll={handleScroll}
               scrollEventThrottle={16}
-              onScrollToIndexFailed={() => {}}
+              onScrollToIndexFailed={() => { }}
             />
-            
+
             <View style={styles.dotsContainer}>
               {getCarouselImages().map((_, index) => (
                 <TouchableOpacity
@@ -196,44 +200,77 @@ const ServiceDetails = () => {
 
           <View style={styles.detailsContainer}>
             <Text style={styles.serviceName}>{details.name}</Text>
-            <Text>Garage: {details.garage}</Text>
-            <Text style={styles.price}>₹{details.displayPrice}</Text>
-            
-            <Text style={styles.sectionTitle}>Available Sizes:</Text>
-           <View style={styles.vehicleSizeContainer}>
-                      {details.availableSizes.map((size) => {
-                     const sizeLabels = {
-                       small: "SM",
-                       medium: "MD",
-                       large: "LG",
-                       "extra large": "XL",
-                       premium: "PM",
-                     };
-                     return (
-                       <TouchableOpacity
-                         key={size}
-                         style={[
-                           styles.sizeButton,
-                           details.selectedSize === size && styles.sizeButtonActive,
-                         ]}
-                         onPress={() => handleSizeSelect(size)}
-                       >
-                         <Text
-                           style={[
-                             styles.sizeButtonText,
-                             details.selectedSize === size && styles.sizeButtonTextActive,
-                           ]}
-                         >
-                           {sizeLabels[size] || size}
-                         </Text>
-                       </TouchableOpacity>
-                     );
-                   })}
-                     </View>
+            <Text>Dent paint by {details.garage}</Text>
 
-            <Text style={styles.sectionTitle}>Description:</Text>
+            {/* rating */}
+            <View style={styles.ratingContainer}>
+              <Text>⭐⭐⭐⭐ </Text>
+              <Text>3.8 (120 reviews)</Text>
+            </View>
+
+            {/* diplay price mrp price discount percentage */}
+            <View style={styles.priceContainer}>
+              <Text style={styles.price}>₹{details.displayPrice}</Text>
+              <Text style={styles.mrpPrice}>₹{details.mrp_price}</Text>
+              <View style={styles.discountContainer}>
+                <Text style={styles.discountPercentage}>{Math.round((1 - details.displayPrice / details.pricing[details.selectedSize].mrp_price) * 100)}% OFF</Text>
+              </View>
+
+            </View>
+
+           
+
+            <Text style={styles.sectionTitle}>Available Sizes:</Text>
+            <View style={styles.vehicleSizeContainer}>
+              {details.availableSizes.map((size) => (
+                <TouchableOpacity
+                  key={size}
+                  style={[
+                    styles.sizeButton,
+                    details.selectedSize === size && styles.sizeButtonActive,
+                  ]}
+                  onPress={() => handleSizeSelect(size)}
+                >
+                  <Text
+                    style={[
+                      styles.sizeButtonText,
+                      details.selectedSize === size && styles.sizeButtonTextActive,
+                    ]}
+                  >
+                    {sizeLabels[size] || size}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+             {/* Wheels */}
+            <View style={styles.wheelContainer}>
+
+              <LottieView
+                              source={require('../assets/lottie/wheel.json')}
+                              
+                              autoPlay
+                              speed={0.5}
+                              loop={true}
+                              style={{ width: 20 , height: 20, transform: [{ scale: 1.0 }] }}
+                              onAnimationFailure={(error) => console.error('Lottie error:', error)}
+                              
+                            />
+                            <Text style={styles.wheelText}> Earn 20 wheels on this Service</Text>
+            </View>
+            
+            {/* Book now */}
+            <View style={styles.bookNowContainer}>
+                <TouchableOpacity onPress={handelPayment} style={styles.bookNowbutton}><Text style={styles.bookNowText}>Book Now</Text></TouchableOpacity>
+            </View>
+
+            <Text style={styles.sectionTitle}>About This Item</Text>
             <Text style={styles.description}>
-              {details.description || "No description available"}
+              {details.info || "No description available"}
+            </Text>
+              <Text style={styles.sectionTitle}>Short Info</Text>
+            <Text style={styles.short_info}>
+              {details.short_info || "No description available"}
             </Text>
           </View>
         </>
@@ -243,7 +280,6 @@ const ServiceDetails = () => {
     </ScrollView>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -257,13 +293,13 @@ const styles = StyleSheet.create({
   },
   carouselImage: {
     flex: 1,
-    marginTop:10,
+    marginTop: 10,
     height: 250,
     width: '90%',
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
-    borderRadius:10,
+    borderRadius: 10,
   },
   dotsContainer: {
     flexDirection: 'row',
@@ -285,31 +321,66 @@ const styles = StyleSheet.create({
   detailsContainer: {
     padding: 16,
   },
+  ratingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  price: {
+    fontSize: 20,
+    color: '#1976d2',
+    fontWeight: 'bold',
+  },
+  mrpPrice: {
+    fontSize: 15,
+    color: '#888',
+    textDecorationLine: 'line-through',
+    marginLeft: 8,
+    marginRight: 8,
+  },
+  discountContainer: {
+    backgroundColor: '#ff5722',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  discountPercentage: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  wheelContainer:{
+    flexDirection:'row',
+  },
+  wheelText:{
+    fontSize:13,
+    color:'green'
+  },
   serviceName: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
   },
-  price: {
-    fontSize: 20,
-    color: '#2ecc71',
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
+
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     marginTop: 12,
     marginBottom: 8,
   },
-   vehicleSizeContainer: {
+  vehicleSizeContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
     marginTop: 12,
     marginBottom: 8,
-
   },
-   sizeButton: {
+  sizeButton: {
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 12,
@@ -321,30 +392,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-   sizeButtonText: {
+  sizeButtonActive: {
+    borderColor: '#3A7BD5',
+    backgroundColor: '#F0F7FF',
+  },
+  sizeButtonText: {
     fontSize: 12,
     fontWeight: '500',
     color: '#666666',
   },
   sizeButtonTextActive: {
     color: '#3A7BD5',
-   fontWeight:'bold'
+    fontWeight: 'bold'
   },
-  
-  sizePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 20,
-    marginRight: 8,
-    marginBottom: 8,
+  bookNowContainer:{
+    flex:1,
+    justifyContent:'center',
+    alignItems:'center',
+    margin:15,
   },
-  selectedSizePill: {
-    backgroundColor: '#e9c2c2ff',
+  bookNowbutton:{
+    height:50,
+    width:'70%',
+    backgroundColor:'#ff5722',
+    justifyContent:'center',
+    alignItems:'center',
+    borderRadius:10,
+    fontWeight:'bold',
   },
-  sizeText: {
-    color: '#333',
+  bookNowText:{
+    fontSize:20,
+    color:'white'
   },
+
+
   description: {
     fontSize: 16,
     lineHeight: 24,

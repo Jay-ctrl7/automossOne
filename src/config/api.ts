@@ -1,9 +1,12 @@
+import CustomerKyc from "../component/CustomerKyc";
+
 export const API_BASE_URL = 'https://ssdemo.in/local_automoss/automoss_api';
 
 export const ENDPOINTS = {
     auth:{
         customerLogin: `${API_BASE_URL}/auth/customerlogin_init`,
         customerVerifyOtp: `${API_BASE_URL}/auth/customer_verifyotp`,
+        Customer_Kycupdate:`${API_BASE_URL}/auth/customer_Kycupdate`,
     },
     master: {
         assessoriesList: `${API_BASE_URL}/master/products/list`,

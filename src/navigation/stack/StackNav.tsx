@@ -11,6 +11,7 @@ import ServiceList from '../../component/ServiceList';
 import Accessories from '../../component/Accessories';
 import { StatusBar } from 'react-native';
 import ServiceDetails from '../../component/ServiceDetails';
+import CustomerKyc from '../../component/CustomerKyc';
 
 const Stack = createNativeStackNavigator();
 
@@ -93,10 +94,18 @@ const StackNav = () => {
         name='ServiceDetails'
         component={ServiceDetails}
         options={{title:"Service Details",
-          headerShown:false,
+          headerShown:true,
           animation:'slide_from_right'
         }}
         />
+        <Stack.Screen 
+        name='CustomerKyc'
+        component={CustomerKyc}
+        options={{
+          title:"Customer KYC",
+          headerShown:true,
+          animation:'slide_from_right'
+        }}/>
       </Stack.Navigator>
     </NavigationContainer>
  
