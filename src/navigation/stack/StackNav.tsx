@@ -12,6 +12,7 @@ import Accessories from '../../component/Accessories';
 import { StatusBar } from 'react-native';
 import ServiceDetails from '../../component/ServiceDetails';
 import CustomerKyc from '../../component/CustomerKyc';
+import CheckOut from '../../component/CheckOut';
 
 const Stack = createNativeStackNavigator();
 
@@ -103,6 +104,14 @@ const StackNav = () => {
         component={CustomerKyc}
         options={{
           title:"Customer KYC",
+          headerShown:false,
+          animation:'slide_from_right'
+        }}/>
+        <Stack.Screen
+        name='Checkout'
+        component={CheckOut}
+        options={{
+          title:"CheckOut",
           headerShown:true,
           animation:'slide_from_right'
         }}/>

@@ -7,6 +7,7 @@ export const ENDPOINTS = {
         customerLogin: `${API_BASE_URL}/auth/customerlogin_init`,
         customerVerifyOtp: `${API_BASE_URL}/auth/customer_verifyotp`,
         Customer_Kycupdate:`${API_BASE_URL}/auth/customer_Kycupdate`,
+        customerinfo:`${API_BASE_URL}/auth/customerinfo`,
     },
     master: {
         assessoriesList: `${API_BASE_URL}/master/products/list`,

@@ -418,6 +418,9 @@ const fetchServicesWithFilters = async (categoryIds = []) => {
    
   });
 };
+const handleCheckout=()=>{
+  navigation.navigate('Checkout')
+}
 
 
   /* ------------------ SUB-COMPONENTS ------------------ */
@@ -547,7 +550,7 @@ const fetchServicesWithFilters = async (categoryIds = []) => {
               <Text style={styles.ratingText}>4.5⭐</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity onPress={handleCheckout} style={styles.addButton}>
             <Text style={styles.addButtonText}>Book Now</Text>
           </TouchableOpacity>
         </View>
