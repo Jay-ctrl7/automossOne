@@ -96,6 +96,8 @@ const ServiceList = () => {
 
 
 
+
+
   /* ------------------ API HELPERS ------------------ */
 const fetchAllServices = async () => {
   try {
@@ -137,9 +139,10 @@ const fetchAllServices = async () => {
         selectedSize: service.availableSizes[0], // Default to first available size
         displayPrice: service.pricing[service.availableSizes[0]].offer_price,
       }));
-
+      
       setDetails(servicesList);
       setFilteredDetails(servicesList);
+      console.log("Details",details);
     }
   } catch (err) {
     console.log("Error fetching services:", err);
@@ -218,6 +221,7 @@ const fetchServicesWithFilters = async (categoryIds = []) => {
 
       setDetails(servicesList);
       setFilteredDetails(servicesList);
+      console.log("Details F",details);
       
       if (servicesList.length === 0) {
         setError('No services match your filters');
@@ -418,8 +422,10 @@ const fetchServicesWithFilters = async (categoryIds = []) => {
    
   });
 };
-const handleCheckout=()=>{
-  navigation.navigate('Checkout')
+const handleCheckout=(item)=>{
+  navigation.navigate('Checkout',{
+    details:item
+  })
 }
 
 
@@ -550,7 +556,7 @@ const handleCheckout=()=>{
               <Text style={styles.ratingText}>4.5⭐</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={handleCheckout} style={styles.addButton}>
+          <TouchableOpacity onPress={()=>handleCheckout(item)} style={styles.addButton}>
             <Text style={styles.addButtonText}>Book Now</Text>
           </TouchableOpacity>
         </View>

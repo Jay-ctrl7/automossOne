@@ -53,10 +53,10 @@ const CustomerKyc = () => {
             'Select Profile Picture',
             'Choose an option',
             [
-                {
-                    text: 'Take Photo',
-                    onPress: () => launchCamera(options, handleResponse),
-                },
+                // {
+                //     text: 'Take Photo',
+                //     onPress: () => launchCamera(options, handleResponse),
+                // },
                 {
                     text: 'Choose from Gallery',
                     onPress: () => launchImageLibrary(options, handleResponse),

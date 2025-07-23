@@ -6,26 +6,29 @@ import {
   Image,
   useWindowDimensions,
   FlatList,
-  TouchableOpacity
+  TouchableOpacity, Alert
 } from 'react-native';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ENDPOINTS } from '../config/api';
 import axios from 'axios';
 import LottieView from 'lottie-react-native';
+import { getAuthData } from '../utils/AuthStore';
 
 const ServiceDetails = () => {
   const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+  const [customerInfo, setCustomerInfo] = useState(null);
+
   const route = useRoute();
   const { itemId, activeFilters } = route.params;
   const flatListRef = useRef();
   const { width: windowWidth } = useWindowDimensions();
   const scrollInterval = useRef();
 
-  const navigation=useNavigation();
+  const navigation = useNavigation();
 
   useEffect(() => {
     fetchServiceDetails();
@@ -54,6 +57,38 @@ const ServiceDetails = () => {
       if (scrollInterval.current) clearInterval(scrollInterval.current);
     };
   }, [currentImageIndex, details, autoScrollEnabled]);
+
+
+  const fetchCustomerInfo = async () => {
+    try {
+      const authData = await getAuthData();
+      const token = authData?.token;
+      if (!token) {
+        Alert.alert("Error", "Please login again");
+        return;
+      }
+      const response = await axios.post(ENDPOINTS.auth.customerinfo, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': `application/json`
+        }
+      })
+      if (response.data?.status === 1) {
+        console.log("Kyc Data", response.data.data);
+        setCustomerInfo(response.data.data);
+      }
+      else {
+        console.log("Not able to get the data");
+      }
+    }
+    catch (error) {
+      console.log("Failed to fetch customer info", error);
+
+    }
+  }
+  useEffect(() => {
+    fetchCustomerInfo();
+  }, [])
 
   const fetchServiceDetails = async () => {
     try {
@@ -153,10 +188,18 @@ const ServiceDetails = () => {
     premium: "PM",
   };
 
-  const handelPayment=()=>{
-    navigation.navigate('CustomerKyc',{
-      city:activeFilters.city
-    })
+  const handelPayment = () => {
+    if (!customerInfo) {
+      navigation.navigate('CustomerKyc', {
+        city: activeFilters.city
+      })
+
+    } else {
+      navigation.navigate('Checkout',{
+        details:details
+      });
+    }
+
 
   }
 
@@ -218,7 +261,7 @@ const ServiceDetails = () => {
 
             </View>
 
-           
+
 
             <Text style={styles.sectionTitle}>Available Sizes:</Text>
             <View style={styles.vehicleSizeContainer}>
@@ -243,32 +286,32 @@ const ServiceDetails = () => {
               ))}
             </View>
 
-             {/* Wheels */}
+            {/* Wheels */}
             <View style={styles.wheelContainer}>
 
               <LottieView
-                              source={require('../assets/lottie/wheel.json')}
-                              
-                              autoPlay
-                              speed={0.5}
-                              loop={true}
-                              style={{ width: 20 , height: 20, transform: [{ scale: 1.0 }] }}
-                              onAnimationFailure={(error) => console.error('Lottie error:', error)}
-                              
-                            />
-                            <Text style={styles.wheelText}> Earn 20 wheels on this Service</Text>
+                source={require('../assets/lottie/wheel.json')}
+
+                autoPlay
+                speed={0.5}
+                loop={true}
+                style={{ width: 20, height: 20, transform: [{ scale: 1.0 }] }}
+                onAnimationFailure={(error) => console.error('Lottie error:', error)}
+
+              />
+              <Text style={styles.wheelText}> Earn 20 wheels on this Service</Text>
             </View>
-            
+
             {/* Book now */}
             <View style={styles.bookNowContainer}>
-                <TouchableOpacity onPress={handelPayment} style={styles.bookNowbutton}><Text style={styles.bookNowText}>Book Now</Text></TouchableOpacity>
+              <TouchableOpacity onPress={handelPayment} style={styles.bookNowbutton}><Text style={styles.bookNowText}>Book Now</Text></TouchableOpacity>
             </View>
 
             <Text style={styles.sectionTitle}>About This Item</Text>
             <Text style={styles.description}>
               {details.info || "No description available"}
             </Text>
-              <Text style={styles.sectionTitle}>Short Info</Text>
+            <Text style={styles.sectionTitle}>Short Info</Text>
             <Text style={styles.short_info}>
               {details.short_info || "No description available"}
             </Text>
@@ -355,12 +398,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 12,
   },
-  wheelContainer:{
-    flexDirection:'row',
+  wheelContainer: {
+    flexDirection: 'row',
   },
-  wheelText:{
-    fontSize:13,
-    color:'green'
+  wheelText: {
+    fontSize: 13,
+    color: 'green'
   },
   serviceName: {
     fontSize: 24,
@@ -405,24 +448,24 @@ const styles = StyleSheet.create({
     color: '#3A7BD5',
     fontWeight: 'bold'
   },
-  bookNowContainer:{
-    flex:1,
-    justifyContent:'center',
-    alignItems:'center',
-    margin:15,
+  bookNowContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    margin: 15,
   },
-  bookNowbutton:{
-    height:50,
-    width:'70%',
-    backgroundColor:'#ff5722',
-    justifyContent:'center',
-    alignItems:'center',
-    borderRadius:10,
-    fontWeight:'bold',
+  bookNowbutton: {
+    height: 50,
+    width: '70%',
+    backgroundColor: '#ff5722',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 10,
+    fontWeight: 'bold',
   },
-  bookNowText:{
-    fontSize:20,
-    color:'white'
+  bookNowText: {
+    fontSize: 20,
+    color: 'white'
   },
 
 
@@ -431,6 +474,11 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: '#555',
   },
+  short_info: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#555',
+  }
 });
 
 export default ServiceDetails;

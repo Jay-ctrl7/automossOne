@@ -111,7 +111,7 @@ const StackNav = () => {
         name='Checkout'
         component={CheckOut}
         options={{
-          title:"CheckOut",
+          title:"Checkout",
           headerShown:true,
           animation:'slide_from_right'
         }}/>

@@ -194,32 +194,45 @@ const FilterModalCar = ({
   }, [filters]);
 
   // City Modal Component
-  const CitySelectionModal = () => (
+ const CitySelectionModal = ({ 
+  visible, 
+  onClose, 
+  cities = [], 
+  selectedCityId,
+  onSelectCity
+}) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredCities, setFilteredCities] = useState(cities);
+
+  // Filter cities based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredCities(cities);
+    } else {
+      const filtered = cities.filter(city =>
+        city.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredCities(filtered);
+    }
+  }, [searchQuery, cities]);
+
+  return (
     <Modal
-      visible={showCityModal}
+      visible={visible}
       transparent={true}
       animationType="slide"
-      onRequestClose={() => {
-        setShowCityModal(false);
-        setSearchQuery('');
-      }}
+      onRequestClose={onClose}
     >
       <View style={cityStyles.modalContainer}>
         <View style={cityStyles.modalContent}>
           <View style={cityStyles.modalHeader}>
             <Text style={cityStyles.modalTitle}>Select City</Text>
-            <TouchableOpacity
-              onPress={() => {
-                setShowCityModal(false);
-                setSearchQuery('');
-              }}
-              style={cityStyles.closeButton}
-            >
+            <TouchableOpacity onPress={onClose} style={cityStyles.closeButton}>
               <Icon name="times" size={20} color="#000" />
             </TouchableOpacity>
           </View>
 
-          {/* Search Bar */}
+          {/* Search Bar - Now fully controlled within this component */}
           <View style={cityStyles.searchContainer}>
             <Icon name="search" size={16} color="#999" style={cityStyles.searchIcon} />
             <TextInput
@@ -241,18 +254,12 @@ const FilterModalCar = ({
 
           {/* City List */}
           <ScrollView style={cityStyles.cityListContainer}>
-            {loading ? (
-              <View style={cityStyles.loadingContainer}>
-                <Text style={cityStyles.loadingText}>Loading cities...</Text>
-              </View>
-            ) : error ? (
-              <View style={cityStyles.errorContainer}>
-                <Text style={cityStyles.errorText}>{error}</Text>
-              </View>
-            ) : filteredCities.length === 0 ? (
+            {filteredCities.length === 0 ? (
               <View style={cityStyles.noResultsContainer}>
                 <Icon name="exclamation-circle" size={24} color="#999" />
-                <Text style={cityStyles.noResultsText}>No cities found</Text>
+                <Text style={cityStyles.noResultsText}>
+                  {searchQuery ? 'No matching cities found' : 'No cities available'}
+                </Text>
               </View>
             ) : (
               filteredCities.map((city) => (
@@ -260,12 +267,15 @@ const FilterModalCar = ({
                   key={city.id}
                   style={[
                     cityStyles.cityItem,
-                    filters.city === city.id && cityStyles.selectedCityItem
+                    selectedCityId === city.id && cityStyles.selectedCityItem
                   ]}
-                  onPress={() => selectCity(city)}
+                  onPress={() => {
+                    onSelectCity(city);
+                    onClose();
+                  }}
                 >
                   <Text style={cityStyles.cityName}>{city.name}</Text>
-                  {filters.city === city.id && (
+                  {selectedCityId === city.id && (
                     <Icon name="check" size={16} color="#007AFF" />
                   )}
                 </TouchableOpacity>
@@ -276,6 +286,7 @@ const FilterModalCar = ({
       </View>
     </Modal>
   );
+};
 
   return (
     <Modal
@@ -486,7 +497,13 @@ const FilterModalCar = ({
       </View>
 
       {/* City Selection Modal */}
-      <CitySelectionModal />
+      <CitySelectionModal
+  visible={showCityModal}
+  onClose={() => setShowCityModal(false)}
+  cities={cities}
+  selectedCityId={filters.city}
+  onSelectCity={(city) => setFilters(prev => ({ ...prev, city: city.id }))}
+/>
     </Modal>
   );
 };
