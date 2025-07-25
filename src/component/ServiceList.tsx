@@ -22,7 +22,7 @@ import CategoryDropdownCheckbox from './CategoryDropdownCheckbox';
 import FilterModalCar from './FilterModalCar';
 import { ENDPOINTS } from '../config/api';
 import LottieView from 'lottie-react-native';
-import {StatusBar} from 'react-native'
+import { StatusBar } from 'react-native'
 import { useNavigation } from '@react-navigation/native';
 import { getAuthData } from '../utils/AuthStore';
 
@@ -49,8 +49,8 @@ const ServiceList = () => {
   const [categoriesAndSubCategories, setCategoriesAndSubCategories] = useState([]);
   const [showFilterModal1, setShowFilterModal1] = useState(false);
 
-      const navigation = useNavigation();
-  
+  const navigation = useNavigation();
+
   // Active filters state
   const [activeFilters, setActiveFilters] = useState({
     city: 19, // Default to Bhubaneswar
@@ -99,157 +99,157 @@ const ServiceList = () => {
 
 
   /* ------------------ API HELPERS ------------------ */
-const fetchAllServices = async () => {
-  try {
-    setLoading(true);
-    
-    const { data } = await axios.post(ENDPOINTS.master.packageMaster.list, {
-      city_id: activeFilters.city,
-      min: activeFilters.price[0],
-      max: activeFilters.price[1],
-      car_size: activeFilters.carSizes,
-      distance: activeFilters.distance,
-    });
+  const fetchAllServices = async () => {
+    try {
+      setLoading(true);
 
-    if (data.status === 1) {
-      // Group services by ID
-      const groupedServices = {};
-      data.data.forEach((service) => {
-        if (!groupedServices[service.id]) {
-          groupedServices[service.id] = {
-            ...service,
-            pricing: {}, // Store all car size prices
-            availableSizes: [], // Track available sizes
-          };
-        }
-        // Add pricing for this car size
-        groupedServices[service.id].pricing[service.car_size] = {
-          mrp_price: service.mrp_price,
-          offer_price: service.offer_price,
-        };
-        // Track available sizes
-        if (!groupedServices[service.id].availableSizes.includes(service.car_size)) {
-          groupedServices[service.id].availableSizes.push(service.car_size);
-        }
+      const { data } = await axios.post(ENDPOINTS.master.packageMaster.list, {
+        city_id: activeFilters.city,
+        min: activeFilters.price[0],
+        max: activeFilters.price[1],
+        car_size: activeFilters.carSizes,
+        distance: activeFilters.distance,
       });
 
-      // Convert to array and set default selected size
-      const servicesList = Object.values(groupedServices).map((service) => ({
-        ...service,
-        selectedSize: service.availableSizes[0], // Default to first available size
-        displayPrice: service.pricing[service.availableSizes[0]].offer_price,
-      }));
-      
-      setDetails(servicesList);
-      setFilteredDetails(servicesList);
-      console.log("Details",details);
-    }
-  } catch (err) {
-    console.log("Error fetching services:", err);
-    setError("Failed to load services");
-  } finally {
-    setLoading(false);
-  }
-};
-
-const fetchServicesWithFilters = async (categoryIds = []) => {
-  try {
-    setLoading(true);
-    setError(null);
-    
-    // Prepare request body
-    const requestBody = {
-      city_id: String(activeFilters.city),
-      min: String(activeFilters.price[0]), // Ensure string if API expects it
-      max: String(activeFilters.price[1]),
-      distance: String(activeFilters.distance),
-      car_size: Array.isArray(activeFilters.carSizes) ? 
-               activeFilters.carSizes : 
-               ['small', 'medium', 'extra large', 'premium']
-    };
-
-    // Add category filter if provided
-    if (categoryIds.length > 0) {
-      requestBody.category_id = Array.isArray(categoryIds) ? 
-                               categoryIds.join(',') : 
-                               String(categoryIds);
-    }
-
-    console.log('Sending filter request:', requestBody); // Debug log
-
-    const response = await axios.post(
-      ENDPOINTS.master.packageMaster.list,
-      requestBody,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 10000 // 10 second timeout
-      }
-    );
-
-    console.log('Filter response:', response.data); // Debug log
-
-    if (response.data?.status === 1 && response.data?.data) {
-      // Group services by ID
-      const groupedServices = {};
-      
-      response.data.data.forEach(service => {
-        if (!groupedServices[service.id]) {
-          groupedServices[service.id] = {
-            ...service,
-            pricing: {},
-            availableSizes: [],
+      if (data.status === 1) {
+        // Group services by ID
+        const groupedServices = {};
+        data.data.forEach((service) => {
+          if (!groupedServices[service.id]) {
+            groupedServices[service.id] = {
+              ...service,
+              pricing: {}, // Store all car size prices
+              availableSizes: [], // Track available sizes
+            };
+          }
+          // Add pricing for this car size
+          groupedServices[service.id].pricing[service.car_size] = {
+            mrp_price: service.mrp_price,
+            offer_price: service.offer_price,
           };
+          // Track available sizes
+          if (!groupedServices[service.id].availableSizes.includes(service.car_size)) {
+            groupedServices[service.id].availableSizes.push(service.car_size);
+          }
+        });
+
+        // Convert to array and set default selected size
+        const servicesList = Object.values(groupedServices).map((service) => ({
+          ...service,
+          selectedSize: service.availableSizes[0], // Default to first available size
+          displayPrice: service.pricing[service.availableSizes[0]].offer_price,
+        }));
+
+        setDetails(servicesList);
+        setFilteredDetails(servicesList);
+        console.log("Details", details);
+      }
+    } catch (err) {
+      console.log("Error fetching services:", err);
+      setError("Failed to load services");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchServicesWithFilters = async (categoryIds = []) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Prepare request body
+      const requestBody = {
+        city_id: String(activeFilters.city),
+        min: String(activeFilters.price[0]), // Ensure string if API expects it
+        max: String(activeFilters.price[1]),
+        distance: String(activeFilters.distance),
+        car_size: Array.isArray(activeFilters.carSizes) ?
+          activeFilters.carSizes :
+          ['small', 'medium', 'extra large', 'premium']
+      };
+
+      // Add category filter if provided
+      if (categoryIds.length > 0) {
+        requestBody.category_id = Array.isArray(categoryIds) ?
+          categoryIds.join(',') :
+          String(categoryIds);
+      }
+
+      console.log('Sending filter request:', requestBody); // Debug log
+
+      const response = await axios.post(
+        ENDPOINTS.master.packageMaster.list,
+        requestBody,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000 // 10 second timeout
         }
-        
-        groupedServices[service.id].pricing[service.car_size] = {
-          mrp_price: service.mrp_price,
-          offer_price: service.offer_price,
-        };
-        
-        if (!groupedServices[service.id].availableSizes.includes(service.car_size)) {
-          groupedServices[service.id].availableSizes.push(service.car_size);
+      );
+
+      console.log('Filter response:', response.data); // Debug log
+
+      if (response.data?.status === 1 && response.data?.data) {
+        // Group services by ID
+        const groupedServices = {};
+
+        response.data.data.forEach(service => {
+          if (!groupedServices[service.id]) {
+            groupedServices[service.id] = {
+              ...service,
+              pricing: {},
+              availableSizes: [],
+            };
+          }
+
+          groupedServices[service.id].pricing[service.car_size] = {
+            mrp_price: service.mrp_price,
+            offer_price: service.offer_price,
+          };
+
+          if (!groupedServices[service.id].availableSizes.includes(service.car_size)) {
+            groupedServices[service.id].availableSizes.push(service.car_size);
+          }
+        });
+
+        const servicesList = Object.values(groupedServices).map(service => ({
+          ...service,
+          selectedSize: service.availableSizes[0] || '',
+          displayPrice: service.pricing[service.availableSizes[0]]?.offer_price || '0',
+        }));
+
+        setDetails(servicesList);
+        setFilteredDetails(servicesList);
+        console.log("Details F", details);
+
+        if (servicesList.length === 0) {
+          setError('No services match your filters');
         }
+      } else {
+        throw new Error(response.data?.message || 'Invalid API response');
+      }
+    } catch (error) {
+      console.log('Filter error:', {
+        message: error.message,
+        response: error.response?.data,
+        config: error.config
       });
 
-      const servicesList = Object.values(groupedServices).map(service => ({
-        ...service,
-        selectedSize: service.availableSizes[0] || '',
-        displayPrice: service.pricing[service.availableSizes[0]]?.offer_price || '0',
-      }));
-
-      setDetails(servicesList);
-      setFilteredDetails(servicesList);
-      console.log("Details F",details);
-      
-      if (servicesList.length === 0) {
-        setError('No services match your filters');
+      let errorMsg = 'Failed to apply filters';
+      if (error.response) {
+        errorMsg = error.response.data?.message || 'Server error occurred';
+      } else if (error.request) {
+        errorMsg = 'Network error - please check your connection';
       }
-    } else {
-      throw new Error(response.data?.message || 'Invalid API response');
-    }
-  } catch (error) {
-    console.log('Filter error:', {
-      message: error.message,
-      response: error.response?.data,
-      config: error.config
-    });
 
-    let errorMsg = 'Failed to apply filters';
-    if (error.response) {
-      errorMsg = error.response.data?.message || 'Server error occurred';
-    } else if (error.request) {
-      errorMsg = 'Network error - please check your connection';
+      setError(errorMsg);
+      setDetails([]);
+      setFilteredDetails([]);
+    } finally {
+      setLoading(false);
     }
-
-    setError(errorMsg);
-    setDetails([]);
-    setFilteredDetails([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const fetchCarService = async () => {
     try {
@@ -354,6 +354,7 @@ const fetchServicesWithFilters = async (categoryIds = []) => {
     setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
 
   const handleFilterApply = (filters) => {
+    console.log("Service List filter: ",filters);
     const newFilters = {
       ...filters,
       filterActive: filters.categories.length > 0 ||
@@ -415,18 +416,18 @@ const fetchServicesWithFilters = async (categoryIds = []) => {
     }
   };
 
- const handleServiceDetails = (item) => {
-  navigation.navigate('ServiceDetails', { 
-    itemId: item.id ,
-    activeFilters,
-   
-  });
-};
-const handleCheckout=(item)=>{
-  navigation.navigate('Checkout',{
-    details:item
-  })
-}
+  const handleServiceDetails = (item) => {
+    navigation.navigate('ServiceDetails', {
+      itemId: item.id,
+      activeFilters,
+
+    });
+  };
+  const handleCheckout = (item) => {
+    navigation.navigate('Checkout', {
+      details: item
+    })
+  }
 
 
   /* ------------------ SUB-COMPONENTS ------------------ */
@@ -442,16 +443,16 @@ const handleCheckout=(item)=>{
   );
 
   const ServiceCard = ({ item }) => {
-    const handleSizeSelect=(size)=>{
-      const updatedDetails=details.map((service)=>{
-        if(service.id===item.id){
-          return{
-               ...service,
-          selectedSize:size,
-          displayPrice:service.pricing[size].offer_price,
+    const handleSizeSelect = (size) => {
+      const updatedDetails = details.map((service) => {
+        if (service.id === item.id) {
+          return {
+            ...service,
+            selectedSize: size,
+            displayPrice: service.pricing[size].offer_price,
 
           }
-       
+
         }
         return service;
       });
@@ -459,111 +460,111 @@ const handleCheckout=(item)=>{
       setFilteredDetails(updatedDetails);
 
     };
-    return(
+    return (
       <View style={styles.cardContainer}>
-      <TouchableOpacity onPress={()=>handleServiceDetails(item)}>
-      <View style={styles.serviceHeader}>
-        <View style={styles.serviceTag}>
-          <Text style={styles.serviceTagText}>{item.garage || 'Service'}</Text>
-        </View>
-          <View style={styles.wheelContainer}>
+        <TouchableOpacity onPress={() => handleServiceDetails(item)}>
+          <View style={styles.serviceHeader}>
+            <View style={styles.serviceTag}>
+              <Text style={styles.serviceTagText}>{item.garage || 'Service'}</Text>
+            </View>
+            <View style={styles.wheelContainer}>
               <Text style={styles.wheelText}>20</Text>
               {/* <Image
                 style={styles.wheelIcon}
                 source={require('../assets/icon/wheel1.png')}
               /> */}
-               <LottieView
+              <LottieView
                 source={require('../assets/lottie/wheel.json')}
                 autoPlay
                 speed={0.5}
                 loop={true}
-                style={{ width: 20 , height: 20 }}
+                style={{ width: 20, height: 20 }}
                 onAnimationFailure={(error) => console.log('Lottie error:', error)}
               />
             </View>
 
-      </View>
-      <View style={styles.cardContent}>
-        <View style={styles.leftContent}>
-          <Text style={styles.serviceName}>{item.name || 'Service Name'}</Text>
-          <Text
-            style={styles.info}
-            numberOfLines={expandedCards[item.id] ? undefined : 3}
-            ellipsizeMode="tail">
-            {item.info || 'No description available'}
-          </Text>
-          {item.info && item.info.length > 100 && (
-            <TouchableOpacity onPress={() => toggleExpand(item.id)}>
-              <Text style={styles.seeMoreText}>
-                {expandedCards[item.id] ? 'See Less' : 'See More'}
+          </View>
+          <View style={styles.cardContent}>
+            <View style={styles.leftContent}>
+              <Text style={styles.serviceName}>{item.name || 'Service Name'}</Text>
+              <Text
+                style={styles.info}
+                numberOfLines={expandedCards[item.id] ? undefined : 3}
+                ellipsizeMode="tail">
+                {item.info || 'No description available'}
               </Text>
-            </TouchableOpacity>
-          )}
-          <View style={styles.priceContainer}>
-            <Text style={styles.originalPrice}>₹{item. pricing[item.selectedSize].mrp_price || '0'}</Text>
-            <Text style={styles.currentPrice}> ₹{item.displayPrice || '0'}</Text>
-            <Text style={styles.percentOff}>{Math.round((1 - item.displayPrice / item. pricing[item.selectedSize].mrp_price) * 100)}% OFF</Text>
-            {/* <View style={styles.wheelContainer}>
+              {item.info && item.info.length > 100 && (
+                <TouchableOpacity onPress={() => toggleExpand(item.id)}>
+                  <Text style={styles.seeMoreText}>
+                    {expandedCards[item.id] ? 'See Less' : 'See More'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <View style={styles.priceContainer}>
+                <Text style={styles.originalPrice}>₹{item.pricing[item.selectedSize].mrp_price || '0'}</Text>
+                <Text style={styles.currentPrice}> ₹{item.displayPrice || '0'}</Text>
+                <Text style={styles.percentOff}>{Math.round((1 - item.displayPrice / item.pricing[item.selectedSize].mrp_price) * 100)}% OFF</Text>
+                {/* <View style={styles.wheelContainer}>
               <Text style={styles.wheelText}>20</Text>
               <Image
                 style={styles.wheelIcon}
                 source={require('../assets/icon/wheel1.png')}
               />
             </View> */}
-          </View>
-          <View style={styles.vehicleSizeContainer}>
-           {item.availableSizes.map((size) => {
-          const sizeLabels = {
-            small: "SM",
-            medium: "MD",
-            large: "LG",
-            "extra large": "XL",
-            premium: "PM",
-          };
-          return (
-            <TouchableOpacity
-              key={size}
-              style={[
-                styles.sizeButton,
-                item.selectedSize === size && styles.sizeButtonActive,
-              ]}
-              onPress={() => handleSizeSelect(size)}
-            >
-              <Text
-                style={[
-                  styles.sizeButtonText,
-                  item.selectedSize === size && styles.sizeButtonTextActive,
-                ]}
-              >
-                {sizeLabels[size] || size}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-          </View>
-        </View>
-        <View style={styles.rightContent}>
-          <View style={styles.imageContainer}>
-            <Image
-              source={
-                item.thumb
-                  ? { uri: item.thumb }
-                  : require('../assets/icon/wheel.png')
-              }
-              style={styles.serviceImage}
-            />
-            <View style={styles.ratingBadge}>
-              <Text style={styles.ratingText}>4.5⭐</Text>
+              </View>
+              <View style={styles.vehicleSizeContainer}>
+                {item.availableSizes.map((size) => {
+                  const sizeLabels = {
+                    small: "SM",
+                    medium: "MD",
+                    large: "LG",
+                    "extra large": "XL",
+                    premium: "PM",
+                  };
+                  return (
+                    <TouchableOpacity
+                      key={size}
+                      style={[
+                        styles.sizeButton,
+                        item.selectedSize === size && styles.sizeButtonActive,
+                      ]}
+                      onPress={() => handleSizeSelect(size)}
+                    >
+                      <Text
+                        style={[
+                          styles.sizeButtonText,
+                          item.selectedSize === size && styles.sizeButtonTextActive,
+                        ]}
+                      >
+                        {sizeLabels[size] || size}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+            <View style={styles.rightContent}>
+              <View style={styles.imageContainer}>
+                <Image
+                  source={
+                    item.thumb
+                      ? { uri: item.thumb }
+                      : require('../assets/icon/wheel.png')
+                  }
+                  style={styles.serviceImage}
+                />
+                <View style={styles.ratingBadge}>
+                  <Text style={styles.ratingText}>4.5⭐</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => handleCheckout(item)} style={styles.addButton}>
+                <Text style={styles.addButtonText}>Book Now</Text>
+              </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity onPress={()=>handleCheckout(item)} style={styles.addButton}>
-            <Text style={styles.addButtonText}>Book Now</Text>
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
       </View>
-       </TouchableOpacity>
-    </View>
-   
+
     )
   }
 
@@ -596,10 +597,10 @@ const handleCheckout=(item)=>{
   return (
     <View style={styles.container}>
       {/* Search Bar */}
-      <StatusBar 
-  backgroundColor="#ffffff" 
-  barStyle="dark-content" // or 'light-content'
-/>
+      <StatusBar
+        backgroundColor="#ffffff"
+        barStyle="dark-content" // or 'light-content'
+      />
       <View style={styles.searchContainer}>
         <Icon name="search" size={20} color="#888" style={styles.searchIcon} />
         <TextInput
@@ -804,7 +805,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     alignSelf: 'flex-start', // only take necessary width
     marginTop: 2,
-    marginRight:2,
+    marginRight: 2,
     borderWidth: 1,
     borderColor: '#D0E8D0', // subtle border
   },
