@@ -7,10 +7,10 @@ import SplashScreen from '../../screen/SplashScreen';
 import OtpVerification from '../../screen/OtpVerification';
 import TabNav from '../TabNavigation/TabNav';
 import TopCarServices from '../../component/TopCarServices';
-import ServiceList from '../../component/ServiceList';
+import ServiceList from '../../screen/ServiceList';
 import Accessories from '../../component/Accessories';
 import { StatusBar } from 'react-native';
-import ServiceDetails from '../../component/ServiceDetails';
+import ServiceDetails from '../../screen/ServiceDetails';
 import CustomerKyc from '../../component/CustomerKyc';
 import CheckOut from '../../component/CheckOut';
 

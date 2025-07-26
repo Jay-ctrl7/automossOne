@@ -1,3 +1,4 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -5,77 +6,66 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  Modal,
+  StatusBar,
   FlatList,
-  ScrollView,
   ActivityIndicator,
-  Alert,
+  ScrollView,
+  Alert
 } from 'react-native';
-import React, { useState, useEffect, useCallback, useRef, act } from 'react';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import Slider from '@react-native-community/slider';
-import { debounce } from 'lodash';
-import DropDownPicker from 'react-native-dropdown-picker';
-import CategoryDropdownCheckbox from './CategoryDropdownCheckbox';
-import FilterModalCar from './FilterModalCar';
-import { ENDPOINTS } from '../config/api';
 import LottieView from 'lottie-react-native';
-import { StatusBar } from 'react-native'
-import { useNavigation } from '@react-navigation/native';
+
+import { ENDPOINTS } from '../config/api';
+import FilterModalCar from '../component/FilterModalCar';
 import { getAuthData } from '../utils/AuthStore';
 
+const DEFAULT_CITY = 19; // fallback for Bhubaneswar
+const DEFAULT_DISTANCE = 50;
+const DEFAULT_PRICE = [100, 10000];
+const DEFAULT_CAR_SIZES = ['small', 'medium', 'extra large', 'premium'];
+const getDefaultFilters = () => ({
+  city: DEFAULT_CITY,
+  distance: DEFAULT_DISTANCE,
+  price: DEFAULT_PRICE,
+  categories: [],
+  subcategories: [],
+  carSizes: [...DEFAULT_CAR_SIZES],
+  filterActive: false,
+});
 
 const ServiceList = () => {
   /* ------------------ STATE ------------------ */
-  const [details, setDetails] = useState([]);
+  const [services, setServices] = useState([]);
   const [expandedCards, setExpandedCards] = useState({});
   const [searchText, setSearchText] = useState('');
-  const [filteredDetails, setFilteredDetails] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedSubcategory, setSelectedSubcategory] = useState(null);
-  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filteredServices, setFilteredServices] = useState([]);
   const [categories, setCategories] = useState([{ id: 'all', name: 'All' }]);
-  const [sortBy, setSortBy] = useState('name');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [customerKycStatus,setCustomerKycStatus]=useState(false)
+
+  // filters and cities
+  const [activeFilters, setActiveFilters] = useState(getDefaultFilters());
   const [cities, setCities] = useState([]);
-  const [selectedCity, setSelectedCity] = useState({
-    id: 19,
-    name: 'Bhubaneswar',
-  });
-  const [categoriesAndSubCategories, setCategoriesAndSubCategories] = useState([]);
-  const [showFilterModal1, setShowFilterModal1] = useState(false);
-
-  const navigation = useNavigation();
-
-  // Active filters state
-  const [activeFilters, setActiveFilters] = useState({
-    city: 19, // Default to Bhubaneswar
-    distance: 50,
-    price: [100, 10000],
-    categories: [],
-    subcategories: [],
-    carSizes: ['small', 'medium', 'extra large', 'premium'],
-    filterActive: false,
-  });
-
-  const route = useRoute();
-  const { sId, sName } = route.params || {};
   const categoryScrollRef = useRef(null);
 
-  /* ------------------ SCROLL TO CATEGORY ------------------ */
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { sId, sName } = route.params || {};
+
+  const [initialCategorySet, setInitialCategorySet] = useState(false);
+
+  /* ------------------ Category Scroll To Highlighted ------------------ */
   const scrollToSelectedCategory = useCallback(() => {
     if (!selectedCategory || !categoryScrollRef.current) return;
-
     const index = categories.findIndex(cat => cat.name === selectedCategory);
     if (index === -1) return;
-
     const itemWidth = 100;
     const position = index * (itemWidth + 10);
-
     categoryScrollRef.current.scrollTo({
       x: position,
       animated: true,
@@ -87,22 +77,14 @@ const ServiceList = () => {
   }, [selectedCategory, scrollToSelectedCategory]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      scrollToSelectedCategory();
-    }, 100);
-
-    return () => clearTimeout(timer);
+    setTimeout(scrollToSelectedCategory, 5000);
   }, []);
 
-
-
-
-
-  /* ------------------ API HELPERS ------------------ */
+  /* -------------------------- API HELPERS ------------------------ */
   const fetchAllServices = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-
       const { data } = await axios.post(ENDPOINTS.master.packageMaster.list, {
         city_id: activeFilters.city,
         min: activeFilters.price[0],
@@ -110,174 +92,121 @@ const ServiceList = () => {
         car_size: activeFilters.carSizes,
         distance: activeFilters.distance,
       });
-
-      if (data.status === 1) {
-        // Group services by ID
-        const groupedServices = {};
-        data.data.forEach((service) => {
-          if (!groupedServices[service.id]) {
-            groupedServices[service.id] = {
+      if (data.status === 1 && Array.isArray(data.data)) {
+        // Group/merge service variants (by car size)
+        const grouped = {};
+        data.data.forEach(service => {
+          if (!grouped[service.id]) {
+            grouped[service.id] = {
               ...service,
-              pricing: {}, // Store all car size prices
-              availableSizes: [], // Track available sizes
+              pricing: {},
+              availableSizes: [],
             };
           }
-          // Add pricing for this car size
-          groupedServices[service.id].pricing[service.car_size] = {
+          grouped[service.id].pricing[service.car_size] = {
             mrp_price: service.mrp_price,
             offer_price: service.offer_price,
           };
-          // Track available sizes
-          if (!groupedServices[service.id].availableSizes.includes(service.car_size)) {
-            groupedServices[service.id].availableSizes.push(service.car_size);
+          if (!grouped[service.id].availableSizes.includes(service.car_size)) {
+            grouped[service.id].availableSizes.push(service.car_size);
           }
         });
-
-        // Convert to array and set default selected size
-        const servicesList = Object.values(groupedServices).map((service) => ({
-          ...service,
-          selectedSize: service.availableSizes[0], // Default to first available size
-          displayPrice: service.pricing[service.availableSizes[0]].offer_price,
+        const arr = Object.values(grouped).map(svc => ({
+          ...svc,
+          selectedSize: svc.availableSizes?.[0] ?? DEFAULT_CAR_SIZES[0],
+          displayPrice: svc.pricing[svc.availableSizes?.[0]]?.offer_price ?? '0',
         }));
-
-        setDetails(servicesList);
-        setFilteredDetails(servicesList);
-        console.log("Details", details);
+        setServices(arr);
+        setFilteredServices(arr);
+      } else {
+        setServices([]);
+        setFilteredServices([]);
       }
     } catch (err) {
-      console.log("Error fetching services:", err);
-      setError("Failed to load services");
+      setError('Failed to load services');
+      setServices([]);
+      setFilteredServices([]);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchServicesWithFilters = async (categoryIds = []) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-
-      // Prepare request body
       const requestBody = {
         city_id: String(activeFilters.city),
-        min: String(activeFilters.price[0]), // Ensure string if API expects it
+        min: String(activeFilters.price[0]),
         max: String(activeFilters.price[1]),
         distance: String(activeFilters.distance),
-        car_size: Array.isArray(activeFilters.carSizes) ?
-          activeFilters.carSizes :
-          ['small', 'medium', 'extra large', 'premium']
+        car_size: Array.isArray(activeFilters.carSizes)
+          ? activeFilters.carSizes
+          : DEFAULT_CAR_SIZES,
       };
-
-      // Add category filter if provided
-      if (categoryIds.length > 0) {
-        requestBody.category_id = Array.isArray(categoryIds) ?
-          categoryIds.join(',') :
-          String(categoryIds);
-      }
-
-      console.log('Sending filter request:', requestBody); // Debug log
-
+      if (categoryIds.length > 0)
+        requestBody.category_id = Array.isArray(categoryIds)
+          ? categoryIds.join(',')
+          : String(categoryIds);
       const response = await axios.post(
         ENDPOINTS.master.packageMaster.list,
         requestBody,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          timeout: 10000 // 10 second timeout
-        }
+        { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
       );
-
-      console.log('Filter response:', response.data); // Debug log
-
       if (response.data?.status === 1 && response.data?.data) {
-        // Group services by ID
-        const groupedServices = {};
-
+        // Group/merge service variants (by car size)
+        const grouped = {};
         response.data.data.forEach(service => {
-          if (!groupedServices[service.id]) {
-            groupedServices[service.id] = {
+          if (!grouped[service.id]) {
+            grouped[service.id] = {
               ...service,
               pricing: {},
               availableSizes: [],
             };
           }
-
-          groupedServices[service.id].pricing[service.car_size] = {
+          grouped[service.id].pricing[service.car_size] = {
             mrp_price: service.mrp_price,
             offer_price: service.offer_price,
           };
-
-          if (!groupedServices[service.id].availableSizes.includes(service.car_size)) {
-            groupedServices[service.id].availableSizes.push(service.car_size);
+          if (!grouped[service.id].availableSizes.includes(service.car_size)) {
+            grouped[service.id].availableSizes.push(service.car_size);
           }
         });
-
-        const servicesList = Object.values(groupedServices).map(service => ({
-          ...service,
-          selectedSize: service.availableSizes[0] || '',
-          displayPrice: service.pricing[service.availableSizes[0]]?.offer_price || '0',
+        const arr = Object.values(grouped).map(svc => ({
+          ...svc,
+          selectedSize: svc.availableSizes?.[0] ?? DEFAULT_CAR_SIZES[0],
+          displayPrice: svc.pricing[svc.availableSizes?.[0]]?.offer_price ?? '0',
         }));
-
-        setDetails(servicesList);
-        setFilteredDetails(servicesList);
-        console.log("Details F", details);
-
-        if (servicesList.length === 0) {
-          setError('No services match your filters');
-        }
+        setServices(arr);
+        setFilteredServices(arr);
+        if (arr.length === 0) setError('No services match your filters');
       } else {
-        throw new Error(response.data?.message || 'Invalid API response');
+        setError('No services match your filters');
+        setServices([]);
+        setFilteredServices([]);
       }
     } catch (error) {
-      console.log('Filter error:', {
-        message: error.message,
-        response: error.response?.data,
-        config: error.config
-      });
-
-      let errorMsg = 'Failed to apply filters';
-      if (error.response) {
-        errorMsg = error.response.data?.message || 'Server error occurred';
-      } else if (error.request) {
-        errorMsg = 'Network error - please check your connection';
-      }
-
-      setError(errorMsg);
-      setDetails([]);
-      setFilteredDetails([]);
+      setError('Failed to apply filters');
+      setServices([]);
+      setFilteredServices([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchCarService = async () => {
+  const fetchCarCategories = async () => {
     try {
       const { data } = await axios.get(ENDPOINTS.master.category);
       if (data.status === 1) {
-        const transformed = [
-          { id: 'all', name: 'All' },
-          ...data.data.map(item => ({
-            id: item.id,
-            name: item.name,
-            thumb: item.thumb,
-          })),
-        ];
-        setCategories(transformed);
-        setCategoriesAndSubCategories(
-          data.data.map(c => ({
-            ...c,
-            isSubcategory: false,
-            subcategories: c.child || [],
-          }))
-        );
-        if (sName && sName !== 'All') {
-          const exists = transformed.some(c => c.name === sName);
-          setSelectedCategory(exists ? sName : 'All');
-        }
+        const all = [{ id: 'all', name: 'All' }, ...data.data.map(item => ({
+          id: item.id,
+          name: item.name,
+          thumb: item.thumb,
+        }))];
+        setCategories(all);
       }
     } catch (err) {
-      console.log('Error fetching categories:', err);
+      // ignore error
     }
   };
 
@@ -286,67 +215,79 @@ const ServiceList = () => {
       const { data } = await axios.get(ENDPOINTS.master.city);
       if (data.status === 1) setCities(data.data);
     } catch (err) {
-      console.log('Error fetching cities:', err);
+      // ignore error
     }
   };
 
   /* ------------------ EFFECTS ------------------ */
+
+  // Initial fetch of categories and cities on mount
   useEffect(() => {
-    fetchCarService();
+    fetchCarCategories();
     fetchCities();
   }, []);
 
-  // Search functionality
+  // Apply route param category filter only once after categories loaded
   useEffect(() => {
-    if (searchText.trim() === '') {
-      setFilteredDetails(details);
-    } else {
-      const filtered = details.filter(item => {
-        const searchLower = searchText.toLowerCase();
-        return (
-          (item.name && item.name.toLowerCase().includes(searchLower)) ||
-          (item.info && item.info.toLowerCase().includes(searchLower)) ||
-          (item.garage && item.garage.toLowerCase().includes(searchLower))
-        );
-      });
-      setFilteredDetails(filtered);
-    }
-  }, [searchText, details]);
-
-  // Fetch services when filters or category changes
-  useEffect(() => {
-    if (categories.length > 1) {
+    if (categories.length > 1 && !initialCategorySet) {
       if (sName && sName !== 'All' && sId) {
         const exists = categories.some(c => c.name === sName);
-        exists ? fetchServicesWithFilters(sId) : fetchAllServices();
-      } else if (activeFilters.filterActive && activeFilters.categories.length > 0) {
-        fetchServicesWithFilters(activeFilters.categories);
+        if (exists) {
+          setSelectedCategory(sName);
+          fetchServicesWithFilters([sId]);
+        } else {
+          fetchAllServices();
+        }
       } else {
         fetchAllServices();
       }
+      setInitialCategorySet(true);
     }
-  }, [categories, sId, sName, activeFilters]);
+  }, [categories, sId, sName, initialCategorySet]);
+
+  // After initial category is set, react only to user changes to selectedCategory or activeFilters
+  useEffect(() => {
+    if (!initialCategorySet) return; // Wait for initial category set
+
+    if (activeFilters.filterActive && activeFilters.categories.length > 0) {
+      fetchServicesWithFilters(activeFilters.categories);
+    } else if (selectedCategory && selectedCategory !== 'All') {
+      const cat = categories.find(c => c.name === selectedCategory);
+      if (cat && cat.id !== 'all') {
+        fetchServicesWithFilters([cat.id]);
+      } else {
+        fetchAllServices();
+      }
+    } else {
+      fetchAllServices();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory, activeFilters]);
+
+  // Filter search text effect
+  useEffect(() => {
+    if (searchText.trim() === '') {
+      setFilteredServices(services);
+    } else {
+      const searchLower = searchText.toLowerCase();
+      setFilteredServices(services.filter(item =>
+        (item.name && item.name.toLowerCase().includes(searchLower)) ||
+        (item.info && item.info.toLowerCase().includes(searchLower)) ||
+        (item.garage && item.garage.toLowerCase().includes(searchLower))
+      ));
+    }
+  }, [searchText, services]);
 
   /* ------------------ HANDLERS ------------------ */
   const handleCategoryPress = (categoryName) => {
     setSelectedCategory(categoryName);
     setError(null);
-    const cat = categories.find(c => c.name === categoryName);
-
-    // If coming from filters, reset filter state but keep other filters
+    // Clear filters if active when user selects category tab manually
     if (activeFilters.filterActive) {
       setActiveFilters(prev => ({
-        ...prev,
-        categories: [],
-        subcategories: [],
-        filterActive: false
+        ...getDefaultFilters(),
+        city: prev.city, // preserve city if needed
       }));
-    }
-
-    if (categoryName === 'All' || !cat || cat.id === 'all') {
-      fetchAllServices();
-    } else {
-      fetchServicesWithFilters(cat.id);
     }
   };
 
@@ -354,65 +295,30 @@ const ServiceList = () => {
     setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
 
   const handleFilterApply = (filters) => {
-    console.log("Service List filter: ",filters);
-    const newFilters = {
+    setActiveFilters({
       ...filters,
-      filterActive: filters.categories.length > 0 ||
-        filters.subcategories.length > 0 ||
-        filters.price[0] !== 100 ||
-        filters.price[1] !== 10000 ||
-        filters.carSizes.length !== 4 ||
-        filters.distance !== 50
-    };
-
-    // Update activeFilters first
-    setActiveFilters(newFilters);
-
-    // Set category name based on filters
-    setSelectedCategory(newFilters.filterActive ? 'Filtered Results' : 'All');
-
-    // Use setTimeout to ensure state is updated before API call
-    setTimeout(() => {
-      // Fetch services with the new filter categories
-      if (newFilters.categories.length > 0) {
-        fetchServicesWithFilters(newFilters.categories);
-      } else {
-        fetchAllServices();
-      }
-    }, 100);
-
-    setShowFilterModal1(false);
+      filterActive: (filters.categories && filters.categories.length > 0) ||
+        (filters.subcategories && filters.subcategories.length > 0) ||
+        !areArraysEqual(filters.price, DEFAULT_PRICE) ||
+        !areArraysEqual(filters.carSizes, DEFAULT_CAR_SIZES) ||
+        filters.distance !== DEFAULT_DISTANCE,
+    });
+    setSelectedCategory('Filtered Results');
+    setShowFilterModal(false);
   };
 
   const handleResetFilters = () => {
-    const resetFilters = {
-      city: 19,
-      distance: 50,
-      price: [100, 10000],
-      categories: [],
-      subcategories: [],
-      carSizes: ['small', 'medium', 'extra large', 'premium'],
-      filterActive: false,
-    };
-
-    setActiveFilters(resetFilters);
+    setActiveFilters(getDefaultFilters());
     setSelectedCategory('All');
-    fetchAllServices();
+    setTimeout(() => fetchAllServices(), 100);
   };
 
   const handleRetry = () => {
     setError(null);
     if (activeFilters.filterActive) {
       fetchServicesWithFilters(activeFilters.categories);
-    } else if (selectedCategory === 'All') {
-      fetchAllServices();
     } else {
-      const cat = categories.find(c => c.name === selectedCategory);
-      if (cat && cat.id !== 'all') {
-        fetchServicesWithFilters(cat.id);
-      } else {
-        fetchAllServices();
-      }
+      fetchAllServices();
     }
   };
 
@@ -420,15 +326,65 @@ const ServiceList = () => {
     navigation.navigate('ServiceDetails', {
       itemId: item.id,
       activeFilters,
-
     });
   };
-  const handleCheckout = (item) => {
-    navigation.navigate('Checkout', {
-      details: item
-    })
-  }
 
+ const fetchCustomerInfo = async () => {
+    try {
+      const authData = await getAuthData();
+      const token = authData?.token;
+      if (!token) {
+        Alert.alert("Error", "Please login again");
+        return;
+      }
+      const response = await axios.post(ENDPOINTS.auth.customerinfo, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': `application/json`
+        }
+      })
+      if (response.data?.data?.kyc_status === "1") {
+        console.log("Kyc Data  ", response.data.data);
+        setCustomerKycStatus(true);
+      }
+      else {
+        setCustomerKycStatus(false);
+        console.log("Kyc Data service List else", response.data.data);
+
+        console.log("KYC not completed");
+      }
+    }
+    catch (error) {
+      console.log("Failed to fetch customer info", error);
+
+    }
+  }
+  useEffect(() => {
+    fetchCustomerInfo();
+  }, [])
+
+  const handleCheckout = (item) => {
+    if (!customerKycStatus) {
+      console.log("customer KYC page")
+      navigation.navigate('CustomerKyc', {
+        city: activeFilters.city
+      })
+
+    } else {
+      console.log("customer checkout")
+
+      navigation.navigate('Checkout', { details: item });
+
+    }
+
+  };
+
+  /* ------------------ UTIL ------------------ */
+  function areArraysEqual(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    return a.every((v, i) => v === b[i]);
+  }
 
   /* ------------------ SUB-COMPONENTS ------------------ */
   const CategoryItem = ({ item, isSelected, onPress }) => (
@@ -444,22 +400,25 @@ const ServiceList = () => {
 
   const ServiceCard = ({ item }) => {
     const handleSizeSelect = (size) => {
-      const updatedDetails = details.map((service) => {
+      const updated = services.map((service) => {
         if (service.id === item.id) {
           return {
             ...service,
             selectedSize: size,
-            displayPrice: service.pricing[size].offer_price,
-
-          }
-
+            displayPrice: service.pricing[size]?.offer_price ?? '0',
+          };
         }
         return service;
       });
-      setDetails(updatedDetails);
-      setFilteredDetails(updatedDetails);
-
+      setServices(updated);
+      setFilteredServices(updated);
     };
+
+    const price = item.pricing[item.selectedSize]?.mrp_price || 0;
+    const offer = item.displayPrice || 0;
+    const percentOff =
+      price > 0 ? Math.max(0, Math.round(100 * (1 - offer / price))) : 0;
+
     return (
       <View style={styles.cardContainer}>
         <TouchableOpacity onPress={() => handleServiceDetails(item)}>
@@ -469,20 +428,14 @@ const ServiceList = () => {
             </View>
             <View style={styles.wheelContainer}>
               <Text style={styles.wheelText}>20</Text>
-              {/* <Image
-                style={styles.wheelIcon}
-                source={require('../assets/icon/wheel1.png')}
-              /> */}
               <LottieView
                 source={require('../assets/lottie/wheel.json')}
                 autoPlay
                 speed={0.5}
                 loop={true}
                 style={{ width: 20, height: 20 }}
-                onAnimationFailure={(error) => console.log('Lottie error:', error)}
               />
             </View>
-
           </View>
           <View style={styles.cardContent}>
             <View style={styles.leftContent}>
@@ -501,16 +454,9 @@ const ServiceList = () => {
                 </TouchableOpacity>
               )}
               <View style={styles.priceContainer}>
-                <Text style={styles.originalPrice}>₹{item.pricing[item.selectedSize].mrp_price || '0'}</Text>
-                <Text style={styles.currentPrice}> ₹{item.displayPrice || '0'}</Text>
-                <Text style={styles.percentOff}>{Math.round((1 - item.displayPrice / item.pricing[item.selectedSize].mrp_price) * 100)}% OFF</Text>
-                {/* <View style={styles.wheelContainer}>
-              <Text style={styles.wheelText}>20</Text>
-              <Image
-                style={styles.wheelIcon}
-                source={require('../assets/icon/wheel1.png')}
-              />
-            </View> */}
+                <Text style={styles.originalPrice}>₹{price}</Text>
+                <Text style={styles.currentPrice}> ₹{offer}</Text>
+                <Text style={styles.percentOff}>{percentOff}% OFF</Text>
               </View>
               <View style={styles.vehicleSizeContainer}>
                 {item.availableSizes.map((size) => {
@@ -552,6 +498,7 @@ const ServiceList = () => {
                       : require('../assets/icon/wheel.png')
                   }
                   style={styles.serviceImage}
+                  onError={() => { /* could trigger placeholder */ }}
                 />
                 <View style={styles.ratingBadge}>
                   <Text style={styles.ratingText}>4.5⭐</Text>
@@ -564,9 +511,8 @@ const ServiceList = () => {
           </View>
         </TouchableOpacity>
       </View>
-
-    )
-  }
+    );
+  };
 
   const EmptyStateMessage = () => (
     <View style={styles.emptyStateContainer}>
@@ -599,7 +545,7 @@ const ServiceList = () => {
       {/* Search Bar */}
       <StatusBar
         backgroundColor="#ffffff"
-        barStyle="dark-content" // or 'light-content'
+        barStyle="dark-content"
       />
       <View style={styles.searchContainer}>
         <Icon name="search" size={20} color="#888" style={styles.searchIcon} />
@@ -612,7 +558,7 @@ const ServiceList = () => {
         />
         <TouchableOpacity
           style={styles.filterButton}
-          onPress={() => setShowFilterModal1(true)}>
+          onPress={() => setShowFilterModal(true)}>
           <Icon name={activeFilters.filterActive ? 'filter-alt' : 'filter-alt-off'}
             size={20}
             color={activeFilters.filterActive ? '#ff4444' : '#888'} />
@@ -625,7 +571,6 @@ const ServiceList = () => {
           </TouchableOpacity>
         )}
       </View>
-
       {/* Categories */}
       <View style={styles.categoryContainer}>
         <ScrollView
@@ -643,11 +588,10 @@ const ServiceList = () => {
           ))}
         </ScrollView>
       </View>
-
       {/* Results Header */}
       <View style={styles.resultsHeader}>
         <Text style={styles.headerText}>
-          {selectedCategory} ({loading ? '...' : filteredDetails.length} Results)
+          {selectedCategory} ({loading ? '...' : filteredServices.length} Results)
         </Text>
         {activeFilters.filterActive && (
           <TouchableOpacity onPress={handleResetFilters}>
@@ -655,27 +599,23 @@ const ServiceList = () => {
           </TouchableOpacity>
         )}
       </View>
-
       {/* Services List */}
-      <ScrollView
+      <FlatList
         style={styles.servicesContainer}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.servicesContentContainer}>
-        {loading ? (
-          <LoadingIndicator />
-        ) : error || filteredDetails.length === 0 ? (
-          <EmptyStateMessage />
-        ) : (
-          filteredDetails.map((item, idx) => (
-            <ServiceCard key={`${item.id}-${idx}`} item={item} />
-          ))
-        )}
-      </ScrollView>
-
+        contentContainerStyle={styles.servicesContentContainer}
+        data={loading ? [] : filteredServices}
+        keyExtractor={(item, idx) => `${item.id}-${idx}`}
+        renderItem={({ item }) => <ServiceCard item={item} />}
+        ListEmptyComponent={
+          loading
+            ? <LoadingIndicator />
+            : <EmptyStateMessage />
+        }
+      />
       {/* Filter Modal */}
       <FilterModalCar
-        visible={showFilterModal1}
-        onClose={() => setShowFilterModal1(false)}
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
         onApplyFilters={handleFilterApply}
         initialFilters={activeFilters}
         onResetFilters={handleResetFilters}
@@ -686,7 +626,10 @@ const ServiceList = () => {
 };
 
 /* ------------------ STYLES ------------------ */
+// (Use your existing StyleSheet object exactly as before - omitted here for brevity)
+
 const styles = StyleSheet.create({
+  // ... (your existing styles here, unchanged)
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   centered: { justifyContent: 'center', alignItems: 'center' },
   errorText: {
@@ -769,7 +712,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   servicesContainer: { flex: 1 },
-  servicesContentContainer: { flexGrow: 1 },
+  servicesContentContainer: { flexGrow: 1, paddingBottom: 20 },
   cardContainer: {
     backgroundColor: 'white',
     marginHorizontal: 16,
@@ -785,7 +728,6 @@ const styles = StyleSheet.create({
   serviceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between'
-
   },
   serviceTag: {
     backgroundColor: '#ff4444',
@@ -795,22 +737,21 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 8,
   },
   serviceTagText: { color: 'white', fontSize: 12, fontWeight: '500' },
-
   wheelContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0F9F0', // light green background
+    backgroundColor: '#F0F9F0',
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    alignSelf: 'flex-start', // only take necessary width
+    alignSelf: 'flex-start',
     marginTop: 2,
     marginRight: 2,
     borderWidth: 1,
-    borderColor: '#D0E8D0', // subtle border
+    borderColor: '#D0E8D0',
   },
   wheelText: {
-    color: '#2E7D32', // dark green
+    color: '#2E7D32',
     fontSize: 14,
     fontWeight: '600',
     marginRight: 4,
@@ -818,7 +759,7 @@ const styles = StyleSheet.create({
   wheelIcon: {
     width: 16,
     height: 16,
-    tintColor: '#2E7D32', // matches text color
+    tintColor: '#2E7D32',
   },
   cardContent: { flexDirection: 'row', padding: 16 },
   leftContent: { flex: 1, paddingRight: 16 },
@@ -828,7 +769,6 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 12,
   },
-
   info: {
     fontSize: 14,
     color: '#666',
@@ -852,6 +792,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     textDecorationLine: 'line-through',
+    marginRight: 6,
   },
   percentOff: {
     color: '#ff4444',
@@ -864,7 +805,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 12,
     marginBottom: 8,
-
   },
   sizeButton: {
     borderWidth: 1,
@@ -891,8 +831,6 @@ const styles = StyleSheet.create({
     color: '#3A7BD5',
     fontWeight: '600',
   },
-
-
   rightContent: { alignItems: 'center' },
   imageContainer: { position: 'relative', marginBottom: 12 },
   serviceImage: {

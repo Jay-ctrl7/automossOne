@@ -20,7 +20,7 @@ const ServiceDetails = () => {
   const [details, setDetails] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
-  const [customerInfo, setCustomerInfo] = useState(null);
+  const [customerKycStatus, setCustomerKycStatus] = useState(false);
 
   const route = useRoute();
   const { itemId, activeFilters } = route.params;
@@ -73,11 +73,14 @@ const ServiceDetails = () => {
           'Content-Type': `application/json`
         }
       })
-      if (response.data?.status === 1) {
-        console.log("Kyc Data", response.data.data);
-        setCustomerInfo(response.data.data);
+      if (response.data?.data?.kyc_status === "1") {
+        console.log("Kyc Data service List", response.data.data);
+        setCustomerKycStatus(true);
       }
       else {
+        setCustomerKycStatus(false);
+        console.log("Kyc Data service List else", response.data.data);
+
         console.log("Not able to get the data");
       }
     }
@@ -189,14 +192,17 @@ const ServiceDetails = () => {
   };
 
   const handelPayment = () => {
-    if (!customerInfo) {
+    if (!customerKycStatus) {
+      console.log("customer kyc status No", customerKycStatus);
       navigation.navigate('CustomerKyc', {
         city: activeFilters.city
       })
 
     } else {
-      navigation.navigate('Checkout',{
-        details:details
+      console.log("customer kyc status yes", customerKycStatus);
+
+      navigation.navigate('Checkout', {
+        details: details
       });
     }
 
@@ -304,7 +310,7 @@ const ServiceDetails = () => {
 
             {/* Book now */}
             <View style={styles.bookNowContainer}>
-              <TouchableOpacity onPress={handelPayment} style={styles.bookNowbutton}><Text style={styles.bookNowText}>Book Now</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => handelPayment()} style={styles.bookNowbutton}><Text style={styles.bookNowText}>Book Now</Text></TouchableOpacity>
             </View>
 
             <Text style={styles.sectionTitle}>About This Item</Text>

@@ -1,99 +1,104 @@
-import { View, Text, Modal, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
-import React, { useState, useEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  Modal,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator
+} from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import axios from 'axios';
 import { ENDPOINTS } from '../config/api';
 import CheckBox from '@react-native-community/checkbox';
 
-const FilterModalCar = ({ 
-  visible, 
+// --- Default values used everywhere ---
+const DEFAULT_CITY = 19; // fallback for Bhubaneswar
+const DEFAULT_DISTANCE = 50;
+const DEFAULT_PRICE = [100, 10000];
+const DEFAULT_CAR_SIZES = ['small', 'medium', 'extra large', 'premium'];
+const NO_VALUE = null;
+
+// Helper to deep compare arrays
+const areArraysEqual = (a, b) =>
+  Array.isArray(a) && Array.isArray(b) &&
+  a.length === b.length && a.every((v, i) => v === b[i]);
+
+const getDefaultFilters = () => ({
+  city: DEFAULT_CITY,
+  distance: DEFAULT_DISTANCE,
+  price: DEFAULT_PRICE,
+  categories: [],
+  subcategories: [],
+  carSizes: [...DEFAULT_CAR_SIZES],
+});
+
+// -------- Main Modal Component --------
+const FilterModalCar = ({
+  visible,
   onClose,
   onApplyFilters,
-  initialFilters,
+  initialFilters = getDefaultFilters(),
   onResetFilters,
   hasActiveFilters
 }) => {
-  // Initialize filters state with default values
-  const [filters, setFilters] = useState({
-    city: initialFilters?.city || null,
-    distance: initialFilters?.distance || null,
-    price: initialFilters?.price || null,
-    categories: initialFilters?.categories || [],
-    subcategories: initialFilters?.subcategories || [],
-    carSizes: initialFilters?.carSizes || ['small', 'medium', 'extra large', 'premium'],
-  });
-
+  const [filters, setFilters] = useState(getDefaultFilters());
+  // Ensure fresh filters on modal open
   useEffect(() => {
-    console.log("Filter modal", filters);
-  }, [filters]);
+    setFilters({ ...getDefaultFilters(), ...initialFilters });
+  }, [initialFilters, visible]);
 
-  // Check if any filters are active (excluding defaults)
+  // Check if any filter is changed from default
   const hasLocalActiveFilters = useMemo(() => {
-    const defaults = {
-      city: null,
-      distance: null,
-      price: null,
-      categories: [],
-      subcategories: [],
-      carSizes: ['small', 'medium', 'extra large', 'premium'],
-    };
-
+    const def = getDefaultFilters();
     return (
-      filters.city !== defaults.city ||
-      filters.distance !== defaults.distance ||
-      filters.price !== defaults.price ||
+      filters.city !== def.city ||
+      filters.distance !== def.distance ||
+      !areArraysEqual(filters.price, def.price) ||
       filters.categories.length > 0 ||
       filters.subcategories.length > 0 ||
-      JSON.stringify(filters.carSizes) !== JSON.stringify(defaults.carSizes)
+      !areArraysEqual(filters.carSizes, def.carSizes)
     );
   }, [filters]);
 
-  // Reset all filters
+  // --- Reset logic
   const handleReset = () => {
-    const defaultFilters = {
-      city: null,
-      distance: null,
-      price: null,
-      categories: [],
-      subcategories: [],
-      carSizes: ['small', 'medium', 'extra large', 'premium'],
-    };
-    
-    setFilters(defaultFilters);
-    onResetFilters();
+    const reset = getDefaultFilters();
+    setFilters(reset);
+    onResetFilters && onResetFilters(reset);
   };
 
-  // Apply filters handler
+  // --- Apply logic
   const handleApply = () => {
-    onApplyFilters(filters);
-    onClose();
+    onApplyFilters && onApplyFilters({ ...filters, filterActive: true });
+    onClose && onClose();
   };
 
-  // Memoize services with all relevant dependencies
+  const [selectedServiceId, setSelectedServiceId] = useState('1');
+
   const services = useMemo(() => [
     {
       id: '1',
       name: 'Location',
-      description: 'Filter by location and distance',
       icon: 'map-marker',
       component: (
         <LocationFilterSection
           key="location"
           selectedCity={filters.city}
-          onCitySelect={(city) => setFilters(prev => ({ ...prev, city }))}
+          onCitySelect={city => setFilters(prev => ({ ...prev, city }))}
         />
       )
     },
     {
       id: '2',
       name: 'Garage Distance',
-      description: 'Filter by nearby garages',
       icon: 'wrench',
       component: (
         <GarageFilterSection
           key="garage"
           selectedDistance={filters.distance}
-          onDistanceSelect={(distance) => 
+          onDistanceSelect={distance =>
             setFilters(prev => ({ ...prev, distance }))
           }
         />
@@ -102,13 +107,12 @@ const FilterModalCar = ({
     {
       id: '3',
       name: 'Price Range',
-      description: 'Set your preferred price range',
       icon: 'rupee',
       component: (
         <PriceFilterSection
           key="price"
           selectedPrice={filters.price}
-          onPriceSelect={(price) => 
+          onPriceSelect={price =>
             setFilters(prev => ({ ...prev, price }))
           }
         />
@@ -117,40 +121,50 @@ const FilterModalCar = ({
     {
       id: '4',
       name: 'Services',
-      description: 'Filter by service categories',
       icon: 'list',
       component: (
         <CategoryFilterSection
           key="category"
           selectedCategories={filters.categories}
           selectedSubcategories={filters.subcategories}
-          onCategorySelect={(categoryId, isSelected) => {
+          onCategorySelect={(catId, isSelected, childrenIds=[]) => {
             setFilters(prev => {
-              const newCategories = isSelected
-                ? [...prev.categories, categoryId]
-                : prev.categories.filter(id => id !== categoryId);
-              
-              // If deselecting a category, deselect all its subcategories
-              let newSubcategories = [...prev.subcategories];
-              if (!isSelected) {
-                // This would need access to the categories data - you might need to pass it
-                // or handle this logic in the parent component
+              // Update categories
+              let cats = isSelected
+                ? [...prev.categories, catId]
+                : prev.categories.filter(id => id !== catId);
+              // Subcat logic
+              let subcats = [...prev.subcategories];
+              if (isSelected && childrenIds.length) {
+                // select all subcats if parent selected
+                subcats = Array.from(new Set([...subcats, ...childrenIds]));
               }
-              
-              return {
-                ...prev,
-                categories: newCategories,
-                subcategories: newSubcategories
-              };
+              if (!isSelected && childrenIds.length) {
+                // remove subcats if parent is deselected
+                subcats = subcats.filter(id => !childrenIds.includes(id));
+              }
+              return { ...prev, categories: cats, subcategories: subcats };
             });
           }}
-          onSubcategorySelect={(subcategoryId, isSelected) => {
-            setFilters(prev => ({
-              ...prev,
-              subcategories: isSelected
-                ? [...prev.subcategories, subcategoryId]
-                : prev.subcategories.filter(id => id !== subcategoryId)
-            }));
+          onSubcategorySelect={(subcatId, isSelected, parentId, siblings=[]) => {
+            setFilters(prev => {
+              let subcats = isSelected
+                ? [...prev.subcategories, subcatId]
+                : prev.subcategories.filter(id => id !== subcatId);
+              // auto-select/deselect parent as needed
+              let cats = [...prev.categories];
+              if (isSelected && !cats.includes(parentId)) {
+                cats.push(parentId);
+              }
+              if (
+                !isSelected &&
+                siblings.every(sid => sid === subcatId || !subcats.includes(sid))
+              ) {
+                // if all siblings are unchecked, uncheck parent
+                cats = cats.filter(id => id !== parentId);
+              }
+              return { ...prev, categories: cats, subcategories: subcats };
+            });
           }}
         />
       )
@@ -158,7 +172,6 @@ const FilterModalCar = ({
     {
       id: '5',
       name: 'Car Sizes',
-      description: 'Filter by car sizes',
       icon: 'car',
       component: (
         <CarSizeFilterSection
@@ -174,24 +187,25 @@ const FilterModalCar = ({
           }}
         />
       )
+    },
+    { // Just visual demo, not hooked up
+      id: '6',
+      name: 'Customer Ratings',
+      icon: 'star',
+      component: <RatingFilterSection key="ratings"/>
     }
   ], [filters]);
-
-  const [selectedServiceId, setSelectedServiceId] = useState('1');
-
-  const handleServicePress = (serviceId) => {
-    setSelectedServiceId(serviceId);
-  };
 
   return (
     <Modal
       visible={visible}
-      transparent={true}
+      transparent
       animationType="slide"
       onRequestClose={onClose}
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
+          {/* --- Header --- */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Filters</Text>
             <View style={styles.headerActions}>
@@ -200,25 +214,26 @@ const FilterModalCar = ({
                   <Text style={styles.resetHeaderText}>Reset</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity onPress={onClose} testID="closeModal">
                 <Icon name="times" size={20} color="#000" />
               </TouchableOpacity>
             </View>
           </View>
 
+          {/* --- Main Tabs/View ---  */}
           <View style={styles.mainContainer}>
-            {/* Left Container */}
+            {/* Left nav */}
             <View style={styles.listContainer}>
               <FlatList
                 data={services}
-                keyExtractor={(item) => item.id}
+                keyExtractor={item => item.id}
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={[
                       styles.serviceItem,
                       selectedServiceId === item.id && styles.selectedItem
                     ]}
-                    onPress={() => handleServicePress(item.id)}
+                    onPress={() => setSelectedServiceId(item.id)}
                   >
                     <Icon
                       name={item.icon}
@@ -235,7 +250,7 @@ const FilterModalCar = ({
                 )}
               />
             </View>
-            {/* Right container */}
+            {/* Filtering UI */}
             <View style={styles.detailsContainer}>
               <View style={styles.filterContentContainer}>
                 {services.find(s => s.id === selectedServiceId)?.component}
@@ -243,6 +258,7 @@ const FilterModalCar = ({
             </View>
           </View>
 
+          {/* --- Footer --- */}
           <View style={styles.modalFooter}>
             <TouchableOpacity
               style={[styles.actionButton, styles.resetButton]}
@@ -251,8 +267,11 @@ const FilterModalCar = ({
               <Text style={styles.buttonText}>Reset All</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionButton, styles.applyButton, 
-                     !hasLocalActiveFilters && styles.disabledButton]}
+              style={[
+                styles.actionButton,
+                styles.applyButton,
+                !hasLocalActiveFilters && styles.disabledButton
+              ]}
               onPress={handleApply}
               disabled={!hasLocalActiveFilters}
             >
@@ -267,56 +286,44 @@ const FilterModalCar = ({
   );
 };
 
+// ----------- Subcomponents Below -----------
+
 const LocationFilterSection = ({ selectedCity, onCitySelect }) => {
   const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const fetchCities = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(ENDPOINTS.master.city);
-      if (response.data.status === 1) {
-        setCities(response.data.data);
-      }
-    } catch (err) {
-      setError(err.message);
-      console.error("Failed to fetch cities:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchCities();
+    let isActive = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await axios.get(ENDPOINTS.master.city);
+        if (res.data.status === 1 && isActive) setCities(res.data.data);
+      } catch (err) {
+        if (isActive) setError('Failed to load cities');
+      } finally {
+        if (isActive) setLoading(false);
+      }
+    })();
+    return () => { isActive = false; };
   }, []);
-
-  if (loading) {
-    return (
-      <View style={localStyles.loadingContainer}>
-        <ActivityIndicator size="small" color="#007AFF" />
-        <Text style={localStyles.loadingText}>Loading cities...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={localStyles.errorContainer}>
-        <Text style={localStyles.errorText}>Error loading cities</Text>
-        <TouchableOpacity onPress={fetchCities}>
-          <Text style={localStyles.retryText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
+  if (loading) return (
+    <View style={localStyles.loadingContainer}>
+      <ActivityIndicator size="small" color="#007AFF"/>
+      <Text style={localStyles.loadingText}>Loading cities...</Text>
+    </View>
+  );
+  if (error) return (
+    <View style={localStyles.errorContainer}>
+      <Text style={localStyles.errorText}>{error}</Text>
+    </View>
+  );
   return (
     <View style={localStyles.container}>
       <Text style={localStyles.sectionTitle}>Select City</Text>
       <FlatList
         data={cities}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={item => String(item.id)}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[
@@ -327,7 +334,7 @@ const LocationFilterSection = ({ selectedCity, onCitySelect }) => {
           >
             <Text style={localStyles.cityText}>{item.name}</Text>
             {selectedCity === item.id && (
-              <Icon name="check" size={16} color="#007AFF" />
+              <Icon name="check" size={16} color="#007AFF"/>
             )}
           </TouchableOpacity>
         )}
@@ -342,13 +349,12 @@ const GarageFilterSection = ({ selectedDistance, onDistanceSelect }) => {
     { id: '10', name: 'Within 10 km', value: 10 },
     { id: '25', name: 'Within 25 km', value: 25 },
     { id: '50', name: 'Within 50 km', value: 50 },
-    { id: 'any', name: 'Any distance', value: null },
+    { id: 'any', name: 'Any Distance', value: DEFAULT_DISTANCE }
   ];
-
   return (
     <View style={garageStyles.container}>
-      <Text style={garageStyles.sectionTitle}>Maximum Distance</Text>
-      {distanceOptions.map((option) => (
+      <Text style={garageStyles.sectionTitle}>Maximum Distance (km)</Text>
+      {distanceOptions.map(option => (
         <TouchableOpacity
           key={option.id}
           style={[
@@ -356,15 +362,11 @@ const GarageFilterSection = ({ selectedDistance, onDistanceSelect }) => {
             selectedDistance === option.value && garageStyles.selectedOption
           ]}
           onPress={() => onDistanceSelect(option.value)}
-          activeOpacity={0.7}
         >
           <CheckBox
             value={selectedDistance === option.value}
             onValueChange={() => onDistanceSelect(option.value)}
-            tintColors={{
-              true: '#007AFF',
-              false: '#A5A5A5'
-            }}
+            tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
             style={garageStyles.checkbox}
           />
           <Text style={garageStyles.optionText}>{option.name}</Text>
@@ -380,23 +382,17 @@ const PriceFilterSection = ({ selectedPrice, onPriceSelect }) => {
     { id: '2', name: '₹1000 - ₹3000', value: [1000, 3000] },
     { id: '3', name: '₹3000 - ₹7000', value: [3000, 7000] },
     { id: '4', name: '₹7000 - ₹15000', value: [7000, 15000] },
-    { id: '5', name: '₹15000 - Above', value: [15000, 50000] },
-    { id: 'any', name: 'Any price', value: null },
+    { id: '5', name: '₹15000+', value: [15000, 50000] },
+    { id: 'any', name: 'Any price', value: DEFAULT_PRICE }
   ];
-
-  const isPriceSelected = (priceValue) => {
-    if (!selectedPrice && !priceValue) return true;
-    if (!selectedPrice || !priceValue) return false;
-    return (
-      selectedPrice[0] === priceValue[0] && 
-      selectedPrice[1] === priceValue[1]
-    );
-  };
-
+  const isPriceSelected = (range) =>
+    Array.isArray(selectedPrice) &&
+    Array.isArray(range) &&
+    selectedPrice[0] === range[0] && selectedPrice[1] === range[1];
   return (
     <View style={priceStyles.container}>
       <Text style={priceStyles.sectionTitle}>Price Range</Text>
-      {priceOptions.map((option) => (
+      {priceOptions.map(option => (
         <TouchableOpacity
           key={option.id}
           style={[
@@ -404,15 +400,11 @@ const PriceFilterSection = ({ selectedPrice, onPriceSelect }) => {
             isPriceSelected(option.value) && priceStyles.selectedOption
           ]}
           onPress={() => onPriceSelect(option.value)}
-          activeOpacity={0.7}
         >
           <CheckBox
             value={isPriceSelected(option.value)}
             onValueChange={() => onPriceSelect(option.value)}
-            tintColors={{
-              true: '#007AFF',
-              false: '#A5A5A5'
-            }}
+            tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
             style={priceStyles.checkbox}
           />
           <Text style={priceStyles.optionText}>{option.name}</Text>
@@ -422,174 +414,123 @@ const PriceFilterSection = ({ selectedPrice, onPriceSelect }) => {
   );
 };
 
-const CategoryFilterSection = ({ 
-  selectedCategories, 
+const CategoryFilterSection = ({
+  selectedCategories,
   selectedSubcategories,
   onCategorySelect,
   onSubcategorySelect
 }) => {
   const [categories, setCategories] = useState([]);
-  const [expandedParents, setExpandedParents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const fetchCategories = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(ENDPOINTS.master.category);
-      if (response.data.status === 1) {
-        setCategories(response.data.data);
-      }
-    } catch (err) {
-      setError(err.message);
-      console.error("Error fetching categories:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  const [expandedParents, setExpandedParents] = useState([]);
   useEffect(() => {
-    fetchCategories();
+    let isActive = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await axios.get(ENDPOINTS.master.category);
+        if (res.data.status === 1 && isActive) setCategories(res.data.data);
+      } catch (err) {
+        if (isActive) setError('Unable to fetch categories');
+      } finally {
+        if (isActive) setLoading(false);
+      }
+    })();
+    return () => { isActive = false; };
   }, []);
-
   const toggleParent = (parentId) => {
-    setExpandedParents(prev =>
-      prev.includes(parentId)
-        ? prev.filter(id => id !== parentId)
-        : [...prev, parentId]
+    setExpandedParents(parents =>
+      parents.includes(parentId)
+        ? parents.filter(id => id !== parentId)
+        : [...parents, parentId]
     );
   };
 
-  const isParentSelected = (parentId) => {
-    return selectedCategories.includes(parentId);
-  };
+  const isParentSelected = (id) => selectedCategories.includes(id);
+  const isChildSelected = (id) => selectedSubcategories.includes(id);
 
-  const isChildSelected = (childId) => {
-    return selectedSubcategories.includes(childId);
-  };
-
-  const handleParentSelect = (parentId) => {
+  // Clicking parent toggles ALL its subcats on/off via passed ids
+  const handleParentSelect = (parentId, children) => {
     const isSelected = isParentSelected(parentId);
-    onCategorySelect(parentId, !isSelected);
-    
-    // When selecting parent, select all its children
-    if (!isSelected) {
-      const parent = categories.find(cat => cat.id === parentId);
-      if (parent && parent.child) {
-        parent.child.forEach(child => {
-          if (!isChildSelected(child.id)) {
-            onSubcategorySelect(child.id, true);
-          }
-        });
-      }
-    }
-    // When deselecting parent, deselect all its children
-    else {
-      const parent = categories.find(cat => cat.id === parentId);
-      if (parent && parent.child) {
-        parent.child.forEach(child => {
-          if (isChildSelected(child.id)) {
-            onSubcategorySelect(child.id, false);
-          }
-        });
-      }
-    }
+    onCategorySelect(parentId, !isSelected, children.map(c => c.id));
   };
 
-  const handleChildSelect = (childId, parentId) => {
+  // Clicking child MAY need to sync parent with all child selection state
+  const handleChildSelect = (childId, parentId, siblingChildren) => {
     const isSelected = isChildSelected(childId);
-    onSubcategorySelect(childId, !isSelected);
-    
-    // When selecting a child, select its parent if not already selected
-    if (!isSelected && !isParentSelected(parentId)) {
-      onCategorySelect(parentId, true);
-    }
-    
-    // When deselecting last child, deselect parent
-    if (isSelected) {
-      const parent = categories.find(cat => cat.id === parentId);
-      if (parent && parent.child) {
-        const hasOtherSelectedChildren = parent.child.some(
-          child => child.id !== childId && isChildSelected(child.id)
-        );
-        if (!hasOtherSelectedChildren) {
-          onCategorySelect(parentId, false);
-        }
-      }
-    }
+    onSubcategorySelect(childId, !isSelected, parentId, siblingChildren.map(c => c.id));
   };
 
-  const renderCategoryItem = (item, isChild = false) => (
-    <TouchableOpacity
-      style={[
-        isChild ? categoryStyles.childItem : categoryStyles.parentItem,
-        (isChild ? isChildSelected(item.id) : isParentSelected(item.id)) &&
-        categoryStyles.selectedItem
-      ]}
-      onPress={() =>
-        isChild
-          ? handleChildSelect(item.id, item.parent_id)
-          : handleParentSelect(item.id)
-      }
-    >
-      <CheckBox
-        value={isChild ? isChildSelected(item.id) : isParentSelected(item.id)}
-        onValueChange={() =>
-          isChild
-            ? handleChildSelect(item.id, item.parent_id)
-            : handleParentSelect(item.id)
-        }
-        tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
-      />
-      <View style={categoryStyles.textContainer}>
-        <Text style={categoryStyles.categoryText}>{item.name}</Text>
-      </View>
-      {!isChild && item.child && item.child.length > 0 && (
-        <Icon
-          name={expandedParents.includes(item.id) ? 'chevron-up' : 'chevron-down'}
-          size={16}
-          color="#666"
-          onPress={() => toggleParent(item.id)}
-        />
-      )}
-    </TouchableOpacity>
+  if (loading) return (
+    <View style={categoryStyles.loadingContainer}>
+      <ActivityIndicator size="small" color="#007AFF"/>
+      <Text style={categoryStyles.loadingText}>Loading categories...</Text>
+    </View>
   );
-
-  if (loading) {
-    return (
-      <View style={categoryStyles.loadingContainer}>
-        <ActivityIndicator size="small" color="#007AFF" />
-        <Text style={categoryStyles.loadingText}>Loading categories...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={categoryStyles.errorContainer}>
-        <Text style={categoryStyles.errorText}>Error loading categories</Text>
-        <TouchableOpacity onPress={fetchCategories}>
-          <Text style={categoryStyles.retryText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  if (error) return (
+    <View style={categoryStyles.errorContainer}>
+      <Text style={categoryStyles.errorText}>{error}</Text>
+    </View>
+  );
 
   return (
     <View style={categoryStyles.container}>
       <Text style={categoryStyles.sectionTitle}>Select Services</Text>
       <FlatList
         data={categories}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={item => String(item.id)}
         renderItem={({ item }) => (
           <View style={categoryStyles.categoryContainer}>
-            {renderCategoryItem(item)}
-
+            {/* Parent item */}
+            <TouchableOpacity
+              style={[
+                categoryStyles.parentItem,
+                isParentSelected(item.id) && categoryStyles.selectedItem
+              ]}
+              onPress={() => handleParentSelect(item.id, item.child ?? [])}
+            >
+              {/* Parent Checkbox */}
+              <CheckBox
+                value={isParentSelected(item.id)}
+                onValueChange={() => handleParentSelect(item.id, item.child ?? [])}
+                tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
+              />
+              <View style={categoryStyles.textContainer}>
+                <Text style={categoryStyles.categoryText}>{item.name}</Text>
+              </View>
+              {item.child && !!item.child.length && (
+                <Icon
+                  name={expandedParents.includes(item.id) ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color="#666"
+                  style={{padding: 8}}
+                  onPress={() => toggleParent(item.id)}
+                />
+              )}
+            </TouchableOpacity>
+            {/* Children */}
             {expandedParents.includes(item.id) && item.child && (
               <View style={categoryStyles.childrenContainer}>
                 {item.child.map(child => (
                   <View key={child.id} style={categoryStyles.childWrapper}>
-                    {renderCategoryItem(child, true)}
+                    <TouchableOpacity
+                      style={[
+                        categoryStyles.childItem,
+                        isChildSelected(child.id) && categoryStyles.selectedItem
+                      ]}
+                      onPress={() => handleChildSelect(child.id, item.id, item.child)}
+                    >
+                      {/* Child Checkbox */}
+                      <CheckBox
+                        value={isChildSelected(child.id)}
+                        onValueChange={() => handleChildSelect(child.id, item.id, item.child)}
+                        tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
+                      />
+                      <View style={categoryStyles.textContainer}>
+                        <Text style={categoryStyles.categoryText}>{child.name}</Text>
+                      </View>
+                    </TouchableOpacity>
                   </View>
                 ))}
               </View>
@@ -608,24 +549,19 @@ const CarSizeFilterSection = ({ selectedSizes, onSizeSelect }) => {
     { id: 'extra large', name: 'Extra Large' },
     { id: 'premium', name: 'Premium' },
   ];
-
   return (
     <View style={carSizeStyles.container}>
       <Text style={carSizeStyles.sectionTitle}>Select Car Sizes</Text>
-      {carSizes.map((size) => (
+      {carSizes.map(size => (
         <TouchableOpacity
           key={size.id}
           style={carSizeStyles.optionContainer}
           onPress={() => onSizeSelect(size.id, !selectedSizes.includes(size.id))}
-          activeOpacity={0.7}
         >
           <CheckBox
             value={selectedSizes.includes(size.id)}
             onValueChange={() => onSizeSelect(size.id, !selectedSizes.includes(size.id))}
-            tintColors={{
-              true: '#007AFF',
-              false: '#A5A5A5'
-            }}
+            tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
             style={carSizeStyles.checkbox}
           />
           <Text style={carSizeStyles.optionText}>{size.name}</Text>
@@ -634,6 +570,20 @@ const CarSizeFilterSection = ({ selectedSizes, onSizeSelect }) => {
     </View>
   );
 };
+
+const RatingFilterSection = () => (
+  <View style={{padding: 15, alignItems: 'center'}}>
+    <Text style={{fontSize: 16, color:'#999'}}>Coming soon: filter by ratings</Text>
+  </View>
+);
+
+// --- styles: styles, garageStyles, priceStyles, categoryStyles, carSizeStyles, localStyles ---
+// Use your previously provided StyleSheet objects unchanged!
+
+// (Below put the styles exactly as in your version.)
+
+
+
 
 // Local styles for components
 const localStyles = StyleSheet.create({
