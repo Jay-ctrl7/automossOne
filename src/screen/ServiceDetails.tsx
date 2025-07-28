@@ -193,13 +193,14 @@ const ServiceDetails = () => {
 
   const handelPayment = () => {
     if (!customerKycStatus) {
-      console.log("customer kyc status No", customerKycStatus);
+      console.log("customer kyc status :", customerKycStatus);
       navigation.navigate('CustomerKyc', {
-        city: activeFilters.city
+        city: activeFilters.city,
+        details:details
       })
 
     } else {
-      console.log("customer kyc status yes", customerKycStatus);
+      console.log("customer kyc status:", customerKycStatus);
 
       navigation.navigate('Checkout', {
         details: details

@@ -12,6 +12,12 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import axios from 'axios';
 import { ENDPOINTS } from '../config/api';
 import CheckBox from '@react-native-community/checkbox';
+import LocationFilterSection from './filter-sections/LocationFilterSection';
+import GarageFilterSection from './filter-sections/GarageFilterSection';
+import PriceFilterSection from './filter-sections/PriceFilterSection';
+import CategoryFilterSection from './filter-sections/CategoryFilterSection';
+import CarSizeFilterSection from'./filter-sections/CarSizeFilterSection';
+import RatingFilterSection from'./filter-sections/RatingFilterSection';
 
 // --- Default values used everywhere ---
 const DEFAULT_CITY = 19; // fallback for Bhubaneswar
@@ -288,294 +294,294 @@ const FilterModalCar = ({
 
 // ----------- Subcomponents Below -----------
 
-const LocationFilterSection = ({ selectedCity, onCitySelect }) => {
-  const [cities, setCities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  useEffect(() => {
-    let isActive = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await axios.get(ENDPOINTS.master.city);
-        if (res.data.status === 1 && isActive) setCities(res.data.data);
-      } catch (err) {
-        if (isActive) setError('Failed to load cities');
-      } finally {
-        if (isActive) setLoading(false);
-      }
-    })();
-    return () => { isActive = false; };
-  }, []);
-  if (loading) return (
-    <View style={localStyles.loadingContainer}>
-      <ActivityIndicator size="small" color="#007AFF"/>
-      <Text style={localStyles.loadingText}>Loading cities...</Text>
-    </View>
-  );
-  if (error) return (
-    <View style={localStyles.errorContainer}>
-      <Text style={localStyles.errorText}>{error}</Text>
-    </View>
-  );
-  return (
-    <View style={localStyles.container}>
-      <Text style={localStyles.sectionTitle}>Select City</Text>
-      <FlatList
-        data={cities}
-        keyExtractor={item => String(item.id)}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              localStyles.cityItem,
-              selectedCity === item.id && localStyles.selectedCityItem
-            ]}
-            onPress={() => onCitySelect(item.id)}
-          >
-            <Text style={localStyles.cityText}>{item.name}</Text>
-            {selectedCity === item.id && (
-              <Icon name="check" size={16} color="#007AFF"/>
-            )}
-          </TouchableOpacity>
-        )}
-      />
-    </View>
-  );
-};
+// const LocationFilterSection = ({ selectedCity, onCitySelect }) => {
+//   const [cities, setCities] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState(null);
+//   useEffect(() => {
+//     let isActive = true;
+//     (async () => {
+//       setLoading(true);
+//       try {
+//         const res = await axios.get(ENDPOINTS.master.city);
+//         if (res.data.status === 1 && isActive) setCities(res.data.data);
+//       } catch (err) {
+//         if (isActive) setError('Failed to load cities');
+//       } finally {
+//         if (isActive) setLoading(false);
+//       }
+//     })();
+//     return () => { isActive = false; };
+//   }, []);
+//   if (loading) return (
+//     <View style={localStyles.loadingContainer}>
+//       <ActivityIndicator size="small" color="#007AFF"/>
+//       <Text style={localStyles.loadingText}>Loading cities...</Text>
+//     </View>
+//   );
+//   if (error) return (
+//     <View style={localStyles.errorContainer}>
+//       <Text style={localStyles.errorText}>{error}</Text>
+//     </View>
+//   );
+//   return (
+//     <View style={localStyles.container}>
+//       <Text style={localStyles.sectionTitle}>Select City</Text>
+//       <FlatList
+//         data={cities}
+//         keyExtractor={item => String(item.id)}
+//         renderItem={({ item }) => (
+//           <TouchableOpacity
+//             style={[
+//               localStyles.cityItem,
+//               selectedCity === item.id && localStyles.selectedCityItem
+//             ]}
+//             onPress={() => onCitySelect(item.id)}
+//           >
+//             <Text style={localStyles.cityText}>{item.name}</Text>
+//             {selectedCity === item.id && (
+//               <Icon name="check" size={16} color="#007AFF"/>
+//             )}
+//           </TouchableOpacity>
+//         )}
+//       />
+//     </View>
+//   );
+// };
 
-const GarageFilterSection = ({ selectedDistance, onDistanceSelect }) => {
-  const distanceOptions = [
-    { id: '5', name: 'Within 5 km', value: 5 },
-    { id: '10', name: 'Within 10 km', value: 10 },
-    { id: '25', name: 'Within 25 km', value: 25 },
-    { id: '50', name: 'Within 50 km', value: 50 },
-    { id: 'any', name: 'Any Distance', value: DEFAULT_DISTANCE }
-  ];
-  return (
-    <View style={garageStyles.container}>
-      <Text style={garageStyles.sectionTitle}>Maximum Distance (km)</Text>
-      {distanceOptions.map(option => (
-        <TouchableOpacity
-          key={option.id}
-          style={[
-            garageStyles.optionContainer,
-            selectedDistance === option.value && garageStyles.selectedOption
-          ]}
-          onPress={() => onDistanceSelect(option.value)}
-        >
-          <CheckBox
-            value={selectedDistance === option.value}
-            onValueChange={() => onDistanceSelect(option.value)}
-            tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
-            style={garageStyles.checkbox}
-          />
-          <Text style={garageStyles.optionText}>{option.name}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-};
+// const GarageFilterSection = ({ selectedDistance, onDistanceSelect }) => {
+//   const distanceOptions = [
+//     { id: '5', name: 'Within 5 km', value: 5 },
+//     { id: '10', name: 'Within 10 km', value: 10 },
+//     { id: '25', name: 'Within 25 km', value: 25 },
+//     { id: '50', name: 'Within 50 km', value: 50 },
+//     { id: 'any', name: 'Any Distance', value: DEFAULT_DISTANCE }
+//   ];
+//   return (
+//     <View style={garageStyles.container}>
+//       <Text style={garageStyles.sectionTitle}>Maximum Distance (km)</Text>
+//       {distanceOptions.map(option => (
+//         <TouchableOpacity
+//           key={option.id}
+//           style={[
+//             garageStyles.optionContainer,
+//             selectedDistance === option.value && garageStyles.selectedOption
+//           ]}
+//           onPress={() => onDistanceSelect(option.value)}
+//         >
+//           <CheckBox
+//             value={selectedDistance === option.value}
+//             onValueChange={() => onDistanceSelect(option.value)}
+//             tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
+//             style={garageStyles.checkbox}
+//           />
+//           <Text style={garageStyles.optionText}>{option.name}</Text>
+//         </TouchableOpacity>
+//       ))}
+//     </View>
+//   );
+// };
 
-const PriceFilterSection = ({ selectedPrice, onPriceSelect }) => {
-  const priceOptions = [
-    { id: '1', name: '₹100 - ₹1000', value: [100, 1000] },
-    { id: '2', name: '₹1000 - ₹3000', value: [1000, 3000] },
-    { id: '3', name: '₹3000 - ₹7000', value: [3000, 7000] },
-    { id: '4', name: '₹7000 - ₹15000', value: [7000, 15000] },
-    { id: '5', name: '₹15000+', value: [15000, 50000] },
-    { id: 'any', name: 'Any price', value: DEFAULT_PRICE }
-  ];
-  const isPriceSelected = (range) =>
-    Array.isArray(selectedPrice) &&
-    Array.isArray(range) &&
-    selectedPrice[0] === range[0] && selectedPrice[1] === range[1];
-  return (
-    <View style={priceStyles.container}>
-      <Text style={priceStyles.sectionTitle}>Price Range</Text>
-      {priceOptions.map(option => (
-        <TouchableOpacity
-          key={option.id}
-          style={[
-            priceStyles.optionContainer,
-            isPriceSelected(option.value) && priceStyles.selectedOption
-          ]}
-          onPress={() => onPriceSelect(option.value)}
-        >
-          <CheckBox
-            value={isPriceSelected(option.value)}
-            onValueChange={() => onPriceSelect(option.value)}
-            tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
-            style={priceStyles.checkbox}
-          />
-          <Text style={priceStyles.optionText}>{option.name}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-};
+// const PriceFilterSection = ({ selectedPrice, onPriceSelect }) => {
+//   const priceOptions = [
+//     { id: '1', name: '₹100 - ₹1000', value: [100, 1000] },
+//     { id: '2', name: '₹1000 - ₹3000', value: [1000, 3000] },
+//     { id: '3', name: '₹3000 - ₹7000', value: [3000, 7000] },
+//     { id: '4', name: '₹7000 - ₹15000', value: [7000, 15000] },
+//     { id: '5', name: '₹15000+', value: [15000, 50000] },
+//     { id: 'any', name: 'Any price', value: DEFAULT_PRICE }
+//   ];
+//   const isPriceSelected = (range) =>
+//     Array.isArray(selectedPrice) &&
+//     Array.isArray(range) &&
+//     selectedPrice[0] === range[0] && selectedPrice[1] === range[1];
+//   return (
+//     <View style={priceStyles.container}>
+//       <Text style={priceStyles.sectionTitle}>Price Range</Text>
+//       {priceOptions.map(option => (
+//         <TouchableOpacity
+//           key={option.id}
+//           style={[
+//             priceStyles.optionContainer,
+//             isPriceSelected(option.value) && priceStyles.selectedOption
+//           ]}
+//           onPress={() => onPriceSelect(option.value)}
+//         >
+//           <CheckBox
+//             value={isPriceSelected(option.value)}
+//             onValueChange={() => onPriceSelect(option.value)}
+//             tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
+//             style={priceStyles.checkbox}
+//           />
+//           <Text style={priceStyles.optionText}>{option.name}</Text>
+//         </TouchableOpacity>
+//       ))}
+//     </View>
+//   );
+// };
 
-const CategoryFilterSection = ({
-  selectedCategories,
-  selectedSubcategories,
-  onCategorySelect,
-  onSubcategorySelect
-}) => {
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [expandedParents, setExpandedParents] = useState([]);
-  useEffect(() => {
-    let isActive = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await axios.get(ENDPOINTS.master.category);
-        if (res.data.status === 1 && isActive) setCategories(res.data.data);
-      } catch (err) {
-        if (isActive) setError('Unable to fetch categories');
-      } finally {
-        if (isActive) setLoading(false);
-      }
-    })();
-    return () => { isActive = false; };
-  }, []);
-  const toggleParent = (parentId) => {
-    setExpandedParents(parents =>
-      parents.includes(parentId)
-        ? parents.filter(id => id !== parentId)
-        : [...parents, parentId]
-    );
-  };
+// const CategoryFilterSection = ({
+//   selectedCategories,
+//   selectedSubcategories,
+//   onCategorySelect,
+//   onSubcategorySelect
+// }) => {
+//   const [categories, setCategories] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState(null);
+//   const [expandedParents, setExpandedParents] = useState([]);
+//   useEffect(() => {
+//     let isActive = true;
+//     (async () => {
+//       setLoading(true);
+//       try {
+//         const res = await axios.get(ENDPOINTS.master.category);
+//         if (res.data.status === 1 && isActive) setCategories(res.data.data);
+//       } catch (err) {
+//         if (isActive) setError('Unable to fetch categories');
+//       } finally {
+//         if (isActive) setLoading(false);
+//       }
+//     })();
+//     return () => { isActive = false; };
+//   }, []);
+//   const toggleParent = (parentId) => {
+//     setExpandedParents(parents =>
+//       parents.includes(parentId)
+//         ? parents.filter(id => id !== parentId)
+//         : [...parents, parentId]
+//     );
+//   };
 
-  const isParentSelected = (id) => selectedCategories.includes(id);
-  const isChildSelected = (id) => selectedSubcategories.includes(id);
+//   const isParentSelected = (id) => selectedCategories.includes(id);
+//   const isChildSelected = (id) => selectedSubcategories.includes(id);
 
-  // Clicking parent toggles ALL its subcats on/off via passed ids
-  const handleParentSelect = (parentId, children) => {
-    const isSelected = isParentSelected(parentId);
-    onCategorySelect(parentId, !isSelected, children.map(c => c.id));
-  };
+//   // Clicking parent toggles ALL its subcats on/off via passed ids
+//   const handleParentSelect = (parentId, children) => {
+//     const isSelected = isParentSelected(parentId);
+//     onCategorySelect(parentId, !isSelected, children.map(c => c.id));
+//   };
 
-  // Clicking child MAY need to sync parent with all child selection state
-  const handleChildSelect = (childId, parentId, siblingChildren) => {
-    const isSelected = isChildSelected(childId);
-    onSubcategorySelect(childId, !isSelected, parentId, siblingChildren.map(c => c.id));
-  };
+//   // Clicking child MAY need to sync parent with all child selection state
+//   const handleChildSelect = (childId, parentId, siblingChildren) => {
+//     const isSelected = isChildSelected(childId);
+//     onSubcategorySelect(childId, !isSelected, parentId, siblingChildren.map(c => c.id));
+//   };
 
-  if (loading) return (
-    <View style={categoryStyles.loadingContainer}>
-      <ActivityIndicator size="small" color="#007AFF"/>
-      <Text style={categoryStyles.loadingText}>Loading categories...</Text>
-    </View>
-  );
-  if (error) return (
-    <View style={categoryStyles.errorContainer}>
-      <Text style={categoryStyles.errorText}>{error}</Text>
-    </View>
-  );
+//   if (loading) return (
+//     <View style={categoryStyles.loadingContainer}>
+//       <ActivityIndicator size="small" color="#007AFF"/>
+//       <Text style={categoryStyles.loadingText}>Loading categories...</Text>
+//     </View>
+//   );
+//   if (error) return (
+//     <View style={categoryStyles.errorContainer}>
+//       <Text style={categoryStyles.errorText}>{error}</Text>
+//     </View>
+//   );
 
-  return (
-    <View style={categoryStyles.container}>
-      <Text style={categoryStyles.sectionTitle}>Select Services</Text>
-      <FlatList
-        data={categories}
-        keyExtractor={item => String(item.id)}
-        renderItem={({ item }) => (
-          <View style={categoryStyles.categoryContainer}>
-            {/* Parent item */}
-            <TouchableOpacity
-              style={[
-                categoryStyles.parentItem,
-                isParentSelected(item.id) && categoryStyles.selectedItem
-              ]}
-              onPress={() => handleParentSelect(item.id, item.child ?? [])}
-            >
-              {/* Parent Checkbox */}
-              <CheckBox
-                value={isParentSelected(item.id)}
-                onValueChange={() => handleParentSelect(item.id, item.child ?? [])}
-                tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
-              />
-              <View style={categoryStyles.textContainer}>
-                <Text style={categoryStyles.categoryText}>{item.name}</Text>
-              </View>
-              {item.child && !!item.child.length && (
-                <Icon
-                  name={expandedParents.includes(item.id) ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color="#666"
-                  style={{padding: 8}}
-                  onPress={() => toggleParent(item.id)}
-                />
-              )}
-            </TouchableOpacity>
-            {/* Children */}
-            {expandedParents.includes(item.id) && item.child && (
-              <View style={categoryStyles.childrenContainer}>
-                {item.child.map(child => (
-                  <View key={child.id} style={categoryStyles.childWrapper}>
-                    <TouchableOpacity
-                      style={[
-                        categoryStyles.childItem,
-                        isChildSelected(child.id) && categoryStyles.selectedItem
-                      ]}
-                      onPress={() => handleChildSelect(child.id, item.id, item.child)}
-                    >
-                      {/* Child Checkbox */}
-                      <CheckBox
-                        value={isChildSelected(child.id)}
-                        onValueChange={() => handleChildSelect(child.id, item.id, item.child)}
-                        tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
-                      />
-                      <View style={categoryStyles.textContainer}>
-                        <Text style={categoryStyles.categoryText}>{child.name}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-      />
-    </View>
-  );
-};
+//   return (
+//     <View style={categoryStyles.container}>
+//       <Text style={categoryStyles.sectionTitle}>Select Services</Text>
+//       <FlatList
+//         data={categories}
+//         keyExtractor={item => String(item.id)}
+//         renderItem={({ item }) => (
+//           <View style={categoryStyles.categoryContainer}>
+//             {/* Parent item */}
+//             <TouchableOpacity
+//               style={[
+//                 categoryStyles.parentItem,
+//                 isParentSelected(item.id) && categoryStyles.selectedItem
+//               ]}
+//               onPress={() => handleParentSelect(item.id, item.child ?? [])}
+//             >
+//               {/* Parent Checkbox */}
+//               <CheckBox
+//                 value={isParentSelected(item.id)}
+//                 onValueChange={() => handleParentSelect(item.id, item.child ?? [])}
+//                 tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
+//               />
+//               <View style={categoryStyles.textContainer}>
+//                 <Text style={categoryStyles.categoryText}>{item.name}</Text>
+//               </View>
+//               {item.child && !!item.child.length && (
+//                 <Icon
+//                   name={expandedParents.includes(item.id) ? 'chevron-up' : 'chevron-down'}
+//                   size={16}
+//                   color="#666"
+//                   style={{padding: 8}}
+//                   onPress={() => toggleParent(item.id)}
+//                 />
+//               )}
+//             </TouchableOpacity>
+//             {/* Children */}
+//             {expandedParents.includes(item.id) && item.child && (
+//               <View style={categoryStyles.childrenContainer}>
+//                 {item.child.map(child => (
+//                   <View key={child.id} style={categoryStyles.childWrapper}>
+//                     <TouchableOpacity
+//                       style={[
+//                         categoryStyles.childItem,
+//                         isChildSelected(child.id) && categoryStyles.selectedItem
+//                       ]}
+//                       onPress={() => handleChildSelect(child.id, item.id, item.child)}
+//                     >
+//                       {/* Child Checkbox */}
+//                       <CheckBox
+//                         value={isChildSelected(child.id)}
+//                         onValueChange={() => handleChildSelect(child.id, item.id, item.child)}
+//                         tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
+//                       />
+//                       <View style={categoryStyles.textContainer}>
+//                         <Text style={categoryStyles.categoryText}>{child.name}</Text>
+//                       </View>
+//                     </TouchableOpacity>
+//                   </View>
+//                 ))}
+//               </View>
+//             )}
+//           </View>
+//         )}
+//       />
+//     </View>
+//   );
+// };
 
-const CarSizeFilterSection = ({ selectedSizes, onSizeSelect }) => {
-  const carSizes = [
-    { id: 'small', name: 'Small' },
-    { id: 'medium', name: 'Medium' },
-    { id: 'extra large', name: 'Extra Large' },
-    { id: 'premium', name: 'Premium' },
-  ];
-  return (
-    <View style={carSizeStyles.container}>
-      <Text style={carSizeStyles.sectionTitle}>Select Car Sizes</Text>
-      {carSizes.map(size => (
-        <TouchableOpacity
-          key={size.id}
-          style={carSizeStyles.optionContainer}
-          onPress={() => onSizeSelect(size.id, !selectedSizes.includes(size.id))}
-        >
-          <CheckBox
-            value={selectedSizes.includes(size.id)}
-            onValueChange={() => onSizeSelect(size.id, !selectedSizes.includes(size.id))}
-            tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
-            style={carSizeStyles.checkbox}
-          />
-          <Text style={carSizeStyles.optionText}>{size.name}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-};
+// const CarSizeFilterSection = ({ selectedSizes, onSizeSelect }) => {
+//   const carSizes = [
+//     { id: 'small', name: 'Small' },
+//     { id: 'medium', name: 'Medium' },
+//     { id: 'extra large', name: 'Extra Large' },
+//     { id: 'premium', name: 'Premium' },
+//   ];
+//   return (
+//     <View style={carSizeStyles.container}>
+//       <Text style={carSizeStyles.sectionTitle}>Select Car Sizes</Text>
+//       {carSizes.map(size => (
+//         <TouchableOpacity
+//           key={size.id}
+//           style={carSizeStyles.optionContainer}
+//           onPress={() => onSizeSelect(size.id, !selectedSizes.includes(size.id))}
+//         >
+//           <CheckBox
+//             value={selectedSizes.includes(size.id)}
+//             onValueChange={() => onSizeSelect(size.id, !selectedSizes.includes(size.id))}
+//             tintColors={{ true: '#007AFF', false: '#A5A5A5' }}
+//             style={carSizeStyles.checkbox}
+//           />
+//           <Text style={carSizeStyles.optionText}>{size.name}</Text>
+//         </TouchableOpacity>
+//       ))}
+//     </View>
+//   );
+// };
 
-const RatingFilterSection = () => (
-  <View style={{padding: 15, alignItems: 'center'}}>
-    <Text style={{fontSize: 16, color:'#999'}}>Coming soon: filter by ratings</Text>
-  </View>
-);
+// const RatingFilterSection = () => (
+//   <View style={{padding: 15, alignItems: 'center'}}>
+//     <Text style={{fontSize: 16, color:'#999'}}>Coming soon: filter by ratings</Text>
+//   </View>
+// );
 
 // --- styles: styles, garageStyles, priceStyles, categoryStyles, carSizeStyles, localStyles ---
 // Use your previously provided StyleSheet objects unchanged!
@@ -586,174 +592,174 @@ const RatingFilterSection = () => (
 
 
 // Local styles for components
-const localStyles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 15 },
-  cityItem: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  selectedCityItem: { backgroundColor: '#f0f7ff' },
-  cityText: { fontSize: 15 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10 },
-  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { color: 'red', marginBottom: 10 },
-  retryText: { color: '#007AFF' },
-});
+// const localStyles = StyleSheet.create({
+//   container: { flex: 1, paddingTop: 10 },
+//   sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 15 },
+//   cityItem: {
+//     padding: 12,
+//     borderBottomWidth: 1,
+//     borderBottomColor: '#eee',
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     alignItems: 'center',
+//   },
+//   selectedCityItem: { backgroundColor: '#f0f7ff' },
+//   cityText: { fontSize: 15 },
+//   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+//   loadingText: { marginTop: 10 },
+//   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+//   errorText: { color: 'red', marginBottom: 10 },
+//   retryText: { color: '#007AFF' },
+// });
 
-const garageStyles = StyleSheet.create({
-  container: {
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  optionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    marginVertical: 4,
-  },
-  selectedOption: {
-    backgroundColor: '#f0f7ff',
-    borderRadius: 8,
-  },
-  checkbox: {
-    marginRight: 10,
-  },
-  optionText: {
-    fontSize: 15,
-  },
-});
+// const garageStyles = StyleSheet.create({
+//   container: {
+//     padding: 16,
+//   },
+//   sectionTitle: {
+//     fontSize: 16,
+//     fontWeight: 'bold',
+//     marginBottom: 12,
+//   },
+//   optionContainer: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     paddingVertical: 10,
+//     marginVertical: 4,
+//   },
+//   selectedOption: {
+//     backgroundColor: '#f0f7ff',
+//     borderRadius: 8,
+//   },
+//   checkbox: {
+//     marginRight: 10,
+//   },
+//   optionText: {
+//     fontSize: 15,
+//   },
+// });
 
-const priceStyles = StyleSheet.create({
-  container: {
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  optionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    marginVertical: 4,
-  },
-  selectedOption: {
-    backgroundColor: '#f0f7ff',
-    borderRadius: 8,
-  },
-  checkbox: {
-    marginRight: 10,
-  },
-  optionText: {
-    fontSize: 15,
-  },
-});
+// const priceStyles = StyleSheet.create({
+//   container: {
+//     padding: 16,
+//   },
+//   sectionTitle: {
+//     fontSize: 16,
+//     fontWeight: 'bold',
+//     marginBottom: 12,
+//   },
+//   optionContainer: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     paddingVertical: 10,
+//     marginVertical: 4,
+//   },
+//   selectedOption: {
+//     backgroundColor: '#f0f7ff',
+//     borderRadius: 8,
+//   },
+//   checkbox: {
+//     marginRight: 10,
+//   },
+//   optionText: {
+//     fontSize: 15,
+//   },
+// });
 
-const categoryStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#666',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    color: 'red',
-    marginBottom: 10,
-  },
-  retryText: {
-    color: '#007AFF',
-    fontWeight: '500',
-  },
-  categoryContainer: {
-    marginBottom: 8,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  parentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#f8f8f8',
-  },
-  childWrapper: {
-    marginLeft: 16,
-    borderLeftWidth: 2,
-    borderLeftColor: '#ddd',
-  },
-  childItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    paddingLeft: 24,
-    backgroundColor: '#f8f8f8',
-  },
-  selectedItem: {
-    backgroundColor: '#e1f0ff',
-  },
-  textContainer: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  categoryText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#333',
-  },
-  childrenContainer: {
-    marginTop: 4,
-  },
-});
+// const categoryStyles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     padding: 16,
+//   },
+//   sectionTitle: {
+//     fontSize: 16,
+//     fontWeight: 'bold',
+//     marginBottom: 12,
+//     color: '#333',
+//   },
+//   loadingContainer: {
+//     flex: 1,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//   },
+//   loadingText: {
+//     marginTop: 10,
+//     color: '#666',
+//   },
+//   errorContainer: {
+//     flex: 1,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//   },
+//   errorText: {
+//     color: 'red',
+//     marginBottom: 10,
+//   },
+//   retryText: {
+//     color: '#007AFF',
+//     fontWeight: '500',
+//   },
+//   categoryContainer: {
+//     marginBottom: 8,
+//     borderRadius: 8,
+//     overflow: 'hidden',
+//   },
+//   parentItem: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     padding: 12,
+//     backgroundColor: '#f8f8f8',
+//   },
+//   childWrapper: {
+//     marginLeft: 16,
+//     borderLeftWidth: 2,
+//     borderLeftColor: '#ddd',
+//   },
+//   childItem: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     padding: 12,
+//     paddingLeft: 24,
+//     backgroundColor: '#f8f8f8',
+//   },
+//   selectedItem: {
+//     backgroundColor: '#e1f0ff',
+//   },
+//   textContainer: {
+//     flex: 1,
+//     marginLeft: 10,
+//   },
+//   categoryText: {
+//     fontSize: 15,
+//     fontWeight: '500',
+//     color: '#333',
+//   },
+//   childrenContainer: {
+//     marginTop: 4,
+//   },
+// });
 
-const carSizeStyles = StyleSheet.create({
-  container: {
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  optionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  checkbox: {
-    marginRight: 8,
-  },
-  optionText: {
-    fontSize: 15,
-  },
-});
+// const carSizeStyles = StyleSheet.create({
+//   container: {
+//     padding: 16,
+//   },
+//   sectionTitle: {
+//     fontSize: 16,
+//     fontWeight: 'bold',
+//     marginBottom: 12,
+//   },
+//   optionContainer: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     marginVertical: 8,
+//   },
+//   checkbox: {
+//     marginRight: 8,
+//   },
+//   optionText: {
+//     fontSize: 15,
+//   },
+// });
 
 const styles = StyleSheet.create({
   modalContainer: {

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ENDPOINTS } from '../config/api';
 import { getAuthData } from '../utils/AuthStore';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
 const CustomerKyc = () => {
@@ -25,7 +25,10 @@ const CustomerKyc = () => {
     const [dropdownVisible, setDropdownVisible] = useState(false);
 
     const route = useRoute();
-    const { city } = route.params || {};
+    const { city,details = {} } = route.params || {};
+     
+
+    const navigation=useNavigation();
 
     // Fetch customer data on mount
     useEffect(() => {
@@ -254,10 +257,17 @@ const CustomerKyc = () => {
             );
 
             if (response.data?.status === 1) {
-                Alert.alert("Success", "KYC information updated successfully");
-            } else {
-                throw new Error(response.data?.message || "Update failed");
-            }
+                Alert.alert("Success", "KYC verified!", [
+        {
+          text: "Continue to Payment",
+          onPress: () => navigation.navigate('Checkout', { 
+            details: details
+          })
+        }
+      ]);
+    } else {
+      throw new Error(response.data?.message || "Verification failed");
+    }
         } catch (error) {
             console.error('Error:', error);
             const errorMsg = error.response?.data?.message ||
