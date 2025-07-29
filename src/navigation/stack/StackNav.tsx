@@ -13,6 +13,7 @@ import { StatusBar } from 'react-native';
 import ServiceDetails from '../../screen/ServiceDetails';
 import CustomerKyc from '../../component/CustomerKyc';
 import CheckOut from '../../component/CheckOut';
+import DrawerNavigator from '../drawer/DrawerNavigator';
 
 const Stack = createNativeStackNavigator();
 
@@ -55,6 +56,14 @@ const StackNav = () => {
             animation: 'slide_from_right' // Custom animation for this screen
           }}
         />
+        <Stack.Screen
+        name="DrawerNav"
+        component={DrawerNavigator}
+        options={{
+          title:'Drawr Nav',
+          headerShown:false,
+          animation:'slide_from_right'
+        }}/>
         <Stack.Screen 
           name="TabNav"
           component={TabNav}

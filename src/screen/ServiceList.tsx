@@ -12,7 +12,7 @@ import ResultsHeader from '../component/ServiceComponent/ResultHeader';
 import ServiceCard from '../component/ServiceComponent/ServiceCard';
 import EmptyState from '../component/ServiceComponent/EmptyState';
 import LoadingIndicator from '../component/ServiceComponent/LoadingIndicatior';
-
+import { useAuthStore } from '../stores/authStore';
 const DEFAULT_CITY = 19; // fallback for Bhubaneswar
 const DEFAULT_DISTANCE = 50;
 const DEFAULT_PRICE = [100, 10000];
@@ -39,10 +39,12 @@ const ServiceList = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [customerKycStatus, setCustomerKycStatus] = useState(false);
+  // const [customerKycStatus, setCustomerKycStatus] = useState(false);
   const [activeFilters, setActiveFilters] = useState(getDefaultFilters());
   const [cities, setCities] = useState([]);
-  
+
+  const customerKycStatus = useAuthStore(state => state.kycStatus);
+
   const categoryScrollRef = useRef(null);
   const navigation = useNavigation();
   const route = useRoute();
@@ -57,7 +59,7 @@ const ServiceList = () => {
   };
 
   // API functions
-  const fetchAllServices = async () => { 
+  const fetchAllServices = async () => {
     setLoading(true);
     setError(null);
     try {
@@ -107,7 +109,7 @@ const ServiceList = () => {
     }
   };
 
-  const fetchServicesWithFilters = async (categoryIds = []) => { 
+  const fetchServicesWithFilters = async (categoryIds = []) => {
     setLoading(true);
     setError(null);
     try {
@@ -171,7 +173,7 @@ const ServiceList = () => {
     }
   };
 
-  const fetchCarCategories = async () => { 
+  const fetchCarCategories = async () => {
     try {
       const { data } = await axios.get(ENDPOINTS.master.category);
       if (data.status === 1) {
@@ -195,33 +197,33 @@ const ServiceList = () => {
       console.error("Failed to fetch cities:", err);
     }
   };
-  
-  const fetchCustomerInfo = async () => {  
-    try {
-      const authData = await getAuthData();
-      const token = authData?.token;
-      if (!token) {
-        Alert.alert("Error", "Please login again");
-        return;
-      }
-      const response = await axios.post(ENDPOINTS.auth.customerinfo, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': `application/json`
-        }
-      });
-      if (response.data?.data?.kyc_status === "1") {
-        setCustomerKycStatus(true);
-      } else {
-        setCustomerKycStatus(false);
-      }
-    } catch (error) {
-      console.error("Failed to fetch customer info:", error);
-    }
-  };
+
+  // const fetchCustomerInfo = async () => {  
+  //   try {
+  //     const authData = await getAuthData();
+  //     const token = authData?.token;
+  //     if (!token) {
+  //       Alert.alert("Error", "Please login again");
+  //       return;
+  //     }
+  //     const response = await axios.post(ENDPOINTS.auth.customerinfo, {}, {
+  //       headers: {
+  //         'Authorization': `Bearer ${token}`,
+  //         'Content-Type': `application/json`
+  //       }
+  //     });
+  //     if (response.data?.data?.kyc_status === "1") {
+  //       setCustomerKycStatus(true);
+  //     } else {
+  //       setCustomerKycStatus(false);
+  //     }
+  //   } catch (error) {
+  //     console.error("Failed to fetch customer info:", error);
+  //   }
+  // };
 
   // Handlers
-  const scrollToSelectedCategory = useCallback(() => {  
+  const scrollToSelectedCategory = useCallback(() => {
     if (!selectedCategory || !categoryScrollRef.current) return;
     const index = categories.findIndex(cat => cat.name === selectedCategory);
     if (index === -1) return;
@@ -233,7 +235,7 @@ const ServiceList = () => {
     });
   }, [selectedCategory, categories]);
 
-  const handleCategoryPress = (categoryName) => { 
+  const handleCategoryPress = (categoryName) => {
     setSelectedCategory(categoryName);
     setError(null);
     // Clear filters if active when user selects category tab manually
@@ -245,11 +247,11 @@ const ServiceList = () => {
     }
   };
 
-  const toggleExpand = (id) => {  
-    setExpandedCards(prev => ({ ...prev, [id]: !prev[id] })) 
+  const toggleExpand = (id) => {
+    setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }))
   };
 
-  const handleFilterApply = (filters) => { 
+  const handleFilterApply = (filters) => {
     setActiveFilters({
       ...filters,
       filterActive: (filters.categories && filters.categories.length > 0) ||
@@ -262,7 +264,7 @@ const ServiceList = () => {
     setShowFilterModal(false);
   };
 
-  const handleResetFilters = () => { 
+  const handleResetFilters = () => {
     setActiveFilters(getDefaultFilters());
     setSelectedCategory('All');
     setTimeout(() => fetchAllServices(), 100);
@@ -286,21 +288,25 @@ const ServiceList = () => {
 
   const handleCheckout = (item) => {
     if (!customerKycStatus) {
+      console.log("customer kyc status:", customerKycStatus);
+
       navigation.navigate('CustomerKyc', {
         city: activeFilters.city,
-         details: {
-          ...item,
-          selectedSize: item.selectedSize,
-          displayPrice: item.displayPrice
-        } 
-      });
-    } else {
-      navigation.navigate('Checkout', { 
         details: {
           ...item,
           selectedSize: item.selectedSize,
           displayPrice: item.displayPrice
-        } 
+        }
+      });
+    } else {
+      console.log("customer kyc status:", customerKycStatus);
+
+      navigation.navigate('Checkout', {
+        details: {
+          ...item,
+          selectedSize: item.selectedSize,
+          displayPrice: item.displayPrice
+        }
       });
     }
   };
@@ -324,7 +330,7 @@ const ServiceList = () => {
   useEffect(() => {
     fetchCarCategories();
     fetchCities();
-    fetchCustomerInfo();
+    // fetchCustomerInfo();
   }, []);
 
   useEffect(() => {
@@ -377,7 +383,7 @@ const ServiceList = () => {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
-      
+
       <SearchHeader
         searchText={searchText}
         setSearchText={setSearchText}
@@ -385,14 +391,14 @@ const ServiceList = () => {
         setShowFilterModal={setShowFilterModal}
         handleResetFilters={handleResetFilters}
       />
-      
+
       <CategoryTabs
         categories={categories}
         selectedCategory={selectedCategory}
         handleCategoryPress={handleCategoryPress}
         scrollRef={categoryScrollRef}
       />
-      
+
       <ResultsHeader
         selectedCategory={selectedCategory}
         loading={loading}
@@ -400,7 +406,7 @@ const ServiceList = () => {
         activeFilters={activeFilters}
         handleResetFilters={handleResetFilters}
       />
-      
+
       <FlatList
         style={styles.servicesContainer}
         contentContainerStyle={styles.servicesContentContainer}
@@ -422,7 +428,7 @@ const ServiceList = () => {
             : <EmptyState error={error} handleRetry={handleRetry} />
         }
       />
-      
+
       <FilterModalCar
         visible={showFilterModal}
         onClose={() => setShowFilterModal(false)}

@@ -3,9 +3,9 @@ import axios from 'axios';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import OTPTextInput from 'react-native-otp-textinput';
-import { storeAuthData } from '../utils/AuthStore';
+// import { storeAuthData } from '../utils/AuthStore';
 import { ENDPOINTS } from '../config/api'; // Adjust the import path as necessary
-
+import {useAuthStore} from '../stores/authStore';
 const OtpVerification = () => {
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -13,6 +13,8 @@ const OtpVerification = () => {
     const { email } = route.params;
 
   const navigation = useNavigation();
+
+    const storeAuthData = useAuthStore(state => state.storeAuthData);
 
   const verifyOtp = async () => {
     if (otp.length !== 6) {
@@ -41,7 +43,7 @@ const OtpVerification = () => {
       if (response.data.token) {
         Alert.alert('Success', 'Login successful!');
         await storeAuthData(response.data);
-        navigation.replace('TabNav'); // Navigate after successful verification
+        navigation.replace('DrawerNav'); // Navigate after successful verification
       } else {
         // Handle case where token is missing but API returned 200
         Alert.alert('Error', response.data.message || 'Verification failed');

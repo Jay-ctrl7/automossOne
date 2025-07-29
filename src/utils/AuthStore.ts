@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const storeAuthData= async(authData) => {
     try {
+        
         await AsyncStorage.multiSet([
             ['@auth_token',authData.token],
             ['@user_id',authData.id],

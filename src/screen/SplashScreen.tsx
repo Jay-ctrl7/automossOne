@@ -3,8 +3,8 @@ import React, { useEffect, useRef } from 'react';
 import LottieView from 'lottie-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
-import { getAuthData } from '../utils/AuthStore';
-
+// import { getAuthData } from '../utils/AuthStore';
+import { useAuthStore } from '../stores/authStore';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -14,22 +14,23 @@ const SplashScreen = ({ onAnimationComplete }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const navigation=useNavigation();
+  const token=useAuthStore(state=>state.token)
 
 
   // Navigate to Login screen after 2000ms
-  const navigateToLogin = async () =>{
-      const authData=await getAuthData();
-      console.log('Auth Data:', authData);
-    setTimeout(async () => {
-     if(authData.token){
-      console.log('Token found:', authData);
-       navigation.replace('TabNav');
-     }else{
-      console.log('No token found',authData);
-       navigation.replace('Login');
-     }
-    }, 2500);
-  }
+  // const navigateToLogin = async () =>{
+  //     const authData=await getAuthData();
+  //     console.log('Auth Data:', authData);
+  //   setTimeout(async () => {
+  //    if(authData.token){
+  //     console.log('Token found:', authData);
+  //      navigation.replace('DrawerNav');
+  //    }else{
+  //     console.log('No token found',authData);
+  //      navigation.replace('Login');
+  //    }
+  //   }, 2500);
+  // }
 
   useEffect(() => {
     // Start all animations together
@@ -63,8 +64,18 @@ const SplashScreen = ({ onAnimationComplete }) => {
       }
     });
     // Navigate to Login screen after 2000ms
-    navigateToLogin();
-  }, []);
+    // navigateToLogin();
+
+    const timeoutId = setTimeout(() => {
+    if (token) {
+      navigation.replace('DrawerNav');
+    } else {
+      navigation.replace('Login');
+    }
+  }, 3500);
+    return () => clearTimeout(timeoutId);
+
+  }, [token, navigation]);
 
   return (
     <View style={styles.container}>

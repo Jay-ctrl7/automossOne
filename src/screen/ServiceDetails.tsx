@@ -13,15 +13,19 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { ENDPOINTS } from '../config/api';
 import axios from 'axios';
 import LottieView from 'lottie-react-native';
-import { getAuthData } from '../utils/AuthStore';
+// import { getAuthData } from '../utils/AuthStore';
+import { useAuthStore } from '../stores/authStore';
+
 
 const ServiceDetails = () => {
   const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
-  const [customerKycStatus, setCustomerKycStatus] = useState(false);
+  // const [customerKycStatus, setCustomerKycStatus] = useState(false);
 
+  const customerKycStatus=useAuthStore(state=>state.kycStatus);
+  
   const route = useRoute();
   const { itemId, activeFilters } = route.params;
   const flatListRef = useRef();
@@ -59,39 +63,39 @@ const ServiceDetails = () => {
   }, [currentImageIndex, details, autoScrollEnabled]);
 
 
-  const fetchCustomerInfo = async () => {
-    try {
-      const authData = await getAuthData();
-      const token = authData?.token;
-      if (!token) {
-        Alert.alert("Error", "Please login again");
-        return;
-      }
-      const response = await axios.post(ENDPOINTS.auth.customerinfo, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': `application/json`
-        }
-      })
-      if (response.data?.data?.kyc_status === "1") {
-        console.log("Kyc Data service List", response.data.data);
-        setCustomerKycStatus(true);
-      }
-      else {
-        setCustomerKycStatus(false);
-        console.log("Kyc Data service List else", response.data.data);
+  // const fetchCustomerInfo = async () => {
+  //   try {
+  //     const authData = await getAuthData();
+  //     const token = authData?.token;
+  //     if (!token) {
+  //       Alert.alert("Error", "Please login again");
+  //       return;
+  //     }
+  //     const response = await axios.post(ENDPOINTS.auth.customerinfo, {}, {
+  //       headers: {
+  //         'Authorization': `Bearer ${token}`,
+  //         'Content-Type': `application/json`
+  //       }
+  //     })
+  //     if (response.data?.data?.kyc_status === "1") {
+  //       console.log("Kyc Data service List", response.data.data);
+  //       setCustomerKycStatus(true);
+  //     }
+  //     else {
+  //       setCustomerKycStatus(false);
+  //       console.log("Kyc Data service List else", response.data.data);
 
-        console.log("Not able to get the data");
-      }
-    }
-    catch (error) {
-      console.log("Failed to fetch customer info", error);
+  //       console.log("Not able to get the data");
+  //     }
+  //   }
+  //   catch (error) {
+  //     console.log("Failed to fetch customer info", error);
 
-    }
-  }
-  useEffect(() => {
-    fetchCustomerInfo();
-  }, [])
+  //   }
+  // }
+  // useEffect(() => {
+  //   fetchCustomerInfo();
+  // }, [])
 
   const fetchServiceDetails = async () => {
     try {
