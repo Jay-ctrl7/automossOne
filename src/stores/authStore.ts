@@ -7,6 +7,7 @@ export const useAuthStore = create((set) => ({
   kycStatus: false,
   expireAt: null,
   loading: false,
+  initialized:false,
 
   initialize: async () => {
     set({ loading: true })
@@ -29,9 +30,10 @@ export const useAuthStore = create((set) => ({
           type: userTypeRes[1],
         },
         loading: false,
+        initialized:true,
       })
     } catch (e) {
-      set({ loading: false })
+      set({ loading: false,initialized:true })
       console.error('Failed to initialize auth store from AsyncStorage', e)
     }
   },

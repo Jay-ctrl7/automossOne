@@ -14,7 +14,8 @@ const SplashScreen = ({ onAnimationComplete }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const navigation=useNavigation();
-  const token=useAuthStore(state=>state.token)
+  const token=useAuthStore(state=>state.token);
+  const initialized=useAuthStore(state=>state.initialize);
 
 
   // Navigate to Login screen after 2000ms
@@ -65,7 +66,7 @@ const SplashScreen = ({ onAnimationComplete }) => {
     });
     // Navigate to Login screen after 2000ms
     // navigateToLogin();
-
+if(!initialized)return;
     const timeoutId = setTimeout(() => {
     if (token) {
       navigation.replace('DrawerNav');
@@ -75,7 +76,7 @@ const SplashScreen = ({ onAnimationComplete }) => {
   }, 3500);
     return () => clearTimeout(timeoutId);
 
-  }, [token, navigation]);
+  }, [token, navigation,initialized]);
 
   return (
     <View style={styles.container}>

@@ -5,6 +5,7 @@ import { ENDPOINTS } from '../config/api';
 import { getAuthData } from '../utils/AuthStore';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { useAuthStore } from '../stores/authStore';
 
 const CustomerKyc = () => {
     const [selectedFile, setSelectedFile] = useState(null);
@@ -26,6 +27,8 @@ const CustomerKyc = () => {
 
     const route = useRoute();
     const { city,details = {} } = route.params || {};
+      const token=useAuthStore(state=>state.token);
+    
      
 
     const navigation=useNavigation();
@@ -155,8 +158,8 @@ const CustomerKyc = () => {
     const fetchCustomerInfo = async () => {
         try {
             setFetching(true);
-            const authData = await getAuthData();
-            const token = authData?.token;
+            // const authData = await getAuthData();
+            // const token = authData?.token;
 
             if (!token) {
                 Alert.alert("Error", "Please login again");

@@ -1,9 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { LogBox } from 'react-native';
-import SplashScreen from './src/screen/SplashScreen';
-import LoginScreen from './src/screen/LoginScreen';
 import StackNav from './src/navigation/stack/StackNav';
-import AppNavigator from './src/AppNavigator';
+import { useAuthStore } from './src/stores/authStore';
 
 // Optional: Suppress specific warnings
 LogBox.ignoreLogs([
@@ -11,9 +9,13 @@ LogBox.ignoreLogs([
 ]);
 
 function App() {
-  return (
-    <StackNav />
-  );
+  const initialize = useAuthStore(state => state.initialize);
+
+  useEffect(() => {
+    initialize();  // hydrate auth store from AsyncStorage on app start
+  }, [initialize]);
+
+  return <StackNav />;
 }
 
 export default App;

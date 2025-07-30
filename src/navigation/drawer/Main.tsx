@@ -5,7 +5,10 @@ import TabNav from '../TabNavigation/TabNav'
 
 const Main = () => {
   return (
+    <>
     <TabNav/>
+    </>
+    
   )
 }
 

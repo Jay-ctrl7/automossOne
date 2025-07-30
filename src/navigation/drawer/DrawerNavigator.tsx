@@ -16,6 +16,9 @@ const DrawerNavigator = () => {
         name="Main Screen" 
         component={Main}
         options={({ navigation }) => ({
+           drawerIcon: ({ color, size }) => (
+            <Icon name="home" size={size} color={color} />
+          ),
           headerShown: true,
           title: 'Home',
           headerTitleStyle: {
@@ -32,16 +35,19 @@ const DrawerNavigator = () => {
       />
       
       {/* Main2 Screen */}
-      <Drawer.Screen 
+      {/* <Drawer.Screen 
         name="Main" 
         component={Main2}
-      />
+      /> */}
       
       {/* Notifications Screen - Correct placement */}
       <Drawer.Screen
         name="Notifications"
         component={Notification}
         options={{
+           drawerIcon: ({ color, size }) => (
+            <Icon name="bell" size={size} color={color} />
+          ),
           title: 'Notifications',
           headerShown: true
         }}

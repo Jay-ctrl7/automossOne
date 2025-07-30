@@ -6,7 +6,8 @@ import {
   Image,
   useWindowDimensions,
   FlatList,
-  TouchableOpacity, Alert
+  TouchableOpacity, Alert,
+  Modal
 } from 'react-native';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -15,6 +16,8 @@ import axios from 'axios';
 import LottieView from 'lottie-react-native';
 // import { getAuthData } from '../utils/AuthStore';
 import { useAuthStore } from '../stores/authStore';
+import Icon from 'react-native-vector-icons/FontAwesome';
+
 
 
 const ServiceDetails = () => {
@@ -24,8 +27,14 @@ const ServiceDetails = () => {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   // const [customerKycStatus, setCustomerKycStatus] = useState(false);
 
-  const customerKycStatus=useAuthStore(state=>state.kycStatus);
-  
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [modalImageIndex, setModalImageIndex] = useState(0);
+  // const carouselImages = getCarouselImages();
+
+
+  const customerKycStatus = useAuthStore(state => state.kycStatus);
+
   const route = useRoute();
   const { itemId, activeFilters } = route.params;
   const flatListRef = useRef();
@@ -177,14 +186,22 @@ const ServiceDetails = () => {
     }));
   };
 
-  const renderCarouselItem = ({ item }) => (
-    <View style={{ width: windowWidth }}>
+  const renderCarouselItem = ({ item, index }) => (
+    <TouchableOpacity activeOpacity={0.9}
+      onPress={() => {
+        setModalImageIndex(index)
+        setModalVisible(true)
+      }}
+      style={{ width: windowWidth }}>
+
       <Image
         source={{ uri: item }}
         style={styles.carouselImage}
         resizeMode="cover"
       />
-    </View>
+
+    </TouchableOpacity>
+
   );
 
   const sizeLabels = {
@@ -200,7 +217,7 @@ const ServiceDetails = () => {
       console.log("customer kyc status :", customerKycStatus);
       navigation.navigate('CustomerKyc', {
         city: activeFilters.city,
-        details:details
+        details: details
       })
 
     } else {
@@ -215,123 +232,176 @@ const ServiceDetails = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {loading ? (
-        <Text>Loading...</Text>
-      ) : details ? (
-        <>
-          <View style={styles.carouselContainer}>
-            <FlatList
-              ref={flatListRef}
-              data={getCarouselImages()}
-              renderItem={renderCarouselItem}
-              keyExtractor={(item, index) => index.toString()}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-              onScrollToIndexFailed={() => { }}
-            />
+    <>
 
-            <View style={styles.dotsContainer}>
-              {getCarouselImages().map((_, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.dot,
-                    currentImageIndex === index && styles.activeDot,
-                  ]}
-                  onPress={() => {
-                    setAutoScrollEnabled(false);
-                    flatListRef.current?.scrollToIndex({ index, animated: true });
-                    setTimeout(() => setAutoScrollEnabled(true), 5000);
-                  }}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <TouchableOpacity style={styles.modalCloseArea} onPress={() => setModalVisible(false)}>
+               <Icon name="times" size={26} color="#fff" />
+          </TouchableOpacity>
+          <FlatList
+            data={getCarouselImages()}
+            horizontal
+            pagingEnabled
+            initialScrollIndex={modalImageIndex}
+            getItemLayout={(_, index) => ({
+              length: windowWidth,
+              offset: windowWidth * index,
+              index,
+            })}
+            ref={ref => {
+              // Scroll to correct index when modal opens
+              if (ref && modalVisible) {
+                setTimeout(() => {
+                  ref.scrollToIndex({ index: modalImageIndex, animated: false });
+                }, 0);
+              }
+            }}
+            onMomentumScrollEnd={e => {
+              const newIndex = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
+              setModalImageIndex(newIndex);
+            }}
+            keyExtractor={(_, idx) => idx.toString()}
+            renderItem={({ item }) => (
+              <View style={{ width: windowWidth, height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                <Image
+                  source={{ uri: item }}
+                  style={styles.fullscreenImage}
+                  resizeMode="contain"
                 />
-              ))}
+              </View>
+            )}
+            showsHorizontalScrollIndicator={false}
+          />
+          <Text style={styles.modalCounter}>
+            {modalImageIndex + 1} / {getCarouselImages.length}
+          </Text>
+        </View>
+      </Modal>
+
+      <ScrollView style={styles.container}>
+        {loading ? (
+          <Text>Loading...</Text>
+        ) : details ? (
+          <>
+            <View style={styles.carouselContainer}>
+              <FlatList
+                ref={flatListRef}
+                data={getCarouselImages()}
+                renderItem={renderCarouselItem}
+                keyExtractor={(item, index) => index.toString()}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                onScrollToIndexFailed={() => { }}
+              />
+
+              <View style={styles.dotsContainer}>
+                {getCarouselImages().map((_, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.dot,
+                      currentImageIndex === index && styles.activeDot,
+                    ]}
+                    onPress={() => {
+                      setAutoScrollEnabled(false);
+                      flatListRef.current?.scrollToIndex({ index, animated: true });
+                      setTimeout(() => setAutoScrollEnabled(true), 5000);
+                    }}
+                  />
+                ))}
+              </View>
             </View>
-          </View>
 
-          <View style={styles.detailsContainer}>
-            <Text style={styles.serviceName}>{details.name}</Text>
-            <Text>Dent paint by {details.garage}</Text>
+            <View style={styles.detailsContainer}>
+              <Text style={styles.serviceName}>{details.name}</Text>
+              <Text>Dent paint by {details.garage}</Text>
 
-            {/* rating */}
-            <View style={styles.ratingContainer}>
-              <Text>⭐⭐⭐⭐ </Text>
-              <Text>3.8 (120 reviews)</Text>
-            </View>
-
-            {/* diplay price mrp price discount percentage */}
-            <View style={styles.priceContainer}>
-              <Text style={styles.price}>₹{details.displayPrice}</Text>
-              <Text style={styles.mrpPrice}>₹{details.mrp_price}</Text>
-              <View style={styles.discountContainer}>
-                <Text style={styles.discountPercentage}>{Math.round((1 - details.displayPrice / details.pricing[details.selectedSize].mrp_price) * 100)}% OFF</Text>
+              {/* rating */}
+              <View style={styles.ratingContainer}>
+                <Text>⭐⭐⭐⭐ </Text>
+                <Text>3.8 (120 reviews)</Text>
               </View>
 
-            </View>
+              {/* diplay price mrp price discount percentage */}
+              <View style={styles.priceContainer}>
+                <Text style={styles.price}>₹{details.displayPrice}</Text>
+                <Text style={styles.mrpPrice}>₹{details.mrp_price}</Text>
+                <View style={styles.discountContainer}>
+                  <Text style={styles.discountPercentage}>{Math.round((1 - details.displayPrice / details.pricing[details.selectedSize].mrp_price) * 100)}% OFF</Text>
+                </View>
+
+              </View>
 
 
 
-            <Text style={styles.sectionTitle}>Available Sizes:</Text>
-            <View style={styles.vehicleSizeContainer}>
-              {details.availableSizes.map((size) => (
-                <TouchableOpacity
-                  key={size}
-                  style={[
-                    styles.sizeButton,
-                    details.selectedSize === size && styles.sizeButtonActive,
-                  ]}
-                  onPress={() => handleSizeSelect(size)}
-                >
-                  <Text
+              <Text style={styles.sectionTitle}>Available Sizes:</Text>
+              <View style={styles.vehicleSizeContainer}>
+                {details.availableSizes.map((size) => (
+                  <TouchableOpacity
+                    key={size}
                     style={[
-                      styles.sizeButtonText,
-                      details.selectedSize === size && styles.sizeButtonTextActive,
+                      styles.sizeButton,
+                      details.selectedSize === size && styles.sizeButtonActive,
                     ]}
+                    onPress={() => handleSizeSelect(size)}
                   >
-                    {sizeLabels[size] || size}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.sizeButtonText,
+                        details.selectedSize === size && styles.sizeButtonTextActive,
+                      ]}
+                    >
+                      {sizeLabels[size] || size}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Wheels */}
+              <View style={styles.wheelContainer}>
+
+                <LottieView
+                  source={require('../assets/lottie/wheel.json')}
+
+                  autoPlay
+                  speed={0.5}
+                  loop={true}
+                  style={{ width: 20, height: 20, transform: [{ scale: 1.0 }] }}
+                  onAnimationFailure={(error) => console.error('Lottie error:', error)}
+
+                />
+                <Text style={styles.wheelText}> Earn 20 wheels on this Service</Text>
+              </View>
+
+              {/* Book now */}
+              <View style={styles.bookNowContainer}>
+                <TouchableOpacity onPress={() => handelPayment()} style={styles.bookNowbutton}><Text style={styles.bookNowText}>Book Now</Text></TouchableOpacity>
+              </View>
+
+              <Text style={styles.sectionTitle}>About This Item</Text>
+              <Text style={styles.description}>
+                {details.info || "No description available"}
+              </Text>
+              <Text style={styles.sectionTitle}>Short Info</Text>
+              <Text style={styles.short_info}>
+                {details.short_info || "No description available"}
+              </Text>
             </View>
+          </>
+        ) : (
+          <Text>No details available for this service</Text>
+        )}
+      </ScrollView>
+    </>
 
-            {/* Wheels */}
-            <View style={styles.wheelContainer}>
-
-              <LottieView
-                source={require('../assets/lottie/wheel.json')}
-
-                autoPlay
-                speed={0.5}
-                loop={true}
-                style={{ width: 20, height: 20, transform: [{ scale: 1.0 }] }}
-                onAnimationFailure={(error) => console.error('Lottie error:', error)}
-
-              />
-              <Text style={styles.wheelText}> Earn 20 wheels on this Service</Text>
-            </View>
-
-            {/* Book now */}
-            <View style={styles.bookNowContainer}>
-              <TouchableOpacity onPress={() => handelPayment()} style={styles.bookNowbutton}><Text style={styles.bookNowText}>Book Now</Text></TouchableOpacity>
-            </View>
-
-            <Text style={styles.sectionTitle}>About This Item</Text>
-            <Text style={styles.description}>
-              {details.info || "No description available"}
-            </Text>
-            <Text style={styles.sectionTitle}>Short Info</Text>
-            <Text style={styles.short_info}>
-              {details.short_info || "No description available"}
-            </Text>
-          </View>
-        </>
-      ) : (
-        <Text>No details available for this service</Text>
-      )}
-    </ScrollView>
   );
 };
 
@@ -489,7 +559,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: '#555',
-  }
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  modalCloseArea: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 10,
+  },
+  modalCloseText: {
+    color: 'white',
+    fontSize: 30,
+    fontWeight: 'bold',
+  },
+  fullscreenImage: {
+    width: '100%',
+    height: '80%',
+    borderRadius: 8,
+  },
+
 });
 
 export default ServiceDetails;

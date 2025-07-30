@@ -1,9 +1,11 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform, Modal, Button,TextInput } from 'react-native';
+import { View, Alert, Text, ScrollView, StyleSheet, TouchableOpacity, Platform, Modal, Button, TextInput } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useRoute, useNavigation } from '@react-navigation/native';
-
+import { useAuthStore } from '../stores/authStore';
+import axios from 'axios';
+import { ENDPOINTS } from '../config/api';
 
 const CheckOut = () => {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -11,8 +13,19 @@ const CheckOut = () => {
   const [taxAmount, setTaxAmount] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
   const [promoVisible, setPromoVisible] = useState(false);
-  const [promo,setPromo]=useState("");
-  
+  const [promo, setPromo] = useState("");
+  const [fetching, setFetching] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [customerData, setCustomerData] = useState({
+    fname: '',
+    mname: '',
+    lname: '',
+    phone: '',
+    email: '',
+    address: ''
+  });
+
+  const token = useAuthStore(state => state.token);
   const route = useRoute();
   const navigation = useNavigation();
   const { details = {} } = route.params || {};
@@ -26,6 +39,52 @@ const CheckOut = () => {
       setTotalAmount(price + calculatedTax);
     }
   }, [details]);
+
+  useEffect(() => {
+    fetchCustomerInfo();
+  }, []);
+
+  const fetchCustomerInfo = async () => {
+    try {
+      setFetching(true);
+      if (!token) {
+        Alert.alert("Error", "Please login again");
+        return;
+      }
+
+      const response = await axios.post(ENDPOINTS.auth.customerinfo, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        }
+      });
+
+      if (response.data?.status === 1) {
+        setCustomerData({
+          fname: response.data.data?.fname || '',
+          mname: response.data.data?.mname || '',
+          lname: response.data.data?.lname || '',
+          phone: response.data.data?.phone || '',
+          email: response.data.data?.email || '',
+          address: response.data.data?.address || ''
+        });
+      } else {
+        console.log("Unexpected response format:", response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch customer info:", error);
+      Alert.alert("Error", "Failed to load customer data");
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setCustomerData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   const showDatePicker = () => {
     setDatePickerVisibility(true);
@@ -70,66 +129,172 @@ const CheckOut = () => {
     });
   };
 
+  const toggleEditing = () => {
+    setEditing(!editing);
+  };
+
+  // const saveCustomerInfo = async () => {
+  //   try {
+  //     setFetching(true);
+  //     const response = await axios.post(ENDPOINTS.auth.updatecustomer, customerData, {
+  //       headers: {
+  //         'Authorization': `Bearer ${token}`,
+  //         'Accept': 'application/json',
+  //       }
+  //     });
+
+  //     if (response.data?.status === 1) {
+  //       Alert.alert("Success", "Profile updated successfully");
+  //       setEditing(false);
+  //     } else {
+  //       Alert.alert("Error", response.data?.message || "Failed to update profile");
+  //     }
+  //   } catch (error) {
+  //     console.error("Failed to update customer info:", error);
+  //     Alert.alert("Error", "Failed to update profile");
+  //   } finally {
+  //     setFetching(false);
+  //   }
+  // };
+
   const PromoModal = () => {
-    const [localPromo,setLocalPromo]=useState(promo)
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={promoVisible}
-      onRequestClose={() => setPromoVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Available offers for you</Text>
-            <TouchableOpacity onPress={() => setPromoVisible(false)}>
-              <Icon name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.modalContent}>
-            <TextInput
-              placeholder="Enter Promocode"
-              placeholderTextColor="#999"
-              value={localPromo}
-              onChangeText={setLocalPromo}
-              style={styles.inputPromoCode}
-              autoCapitalize="characters" // For promo codes
-              autoCorrect={false}
-            />
-            
-            <TouchableOpacity 
-              style={styles.applyButton}
-              onPress={() => {
-                // Add your promo validation logic here
-                setPromoVisible(false);
-              }}
-            >
-              <Text style={styles.applyButtonText}>APPLY</Text>
-            </TouchableOpacity>
+    const [localPromo, setLocalPromo] = useState(promo);
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={promoVisible}
+        onRequestClose={() => setPromoVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Available offers for you</Text>
+              <TouchableOpacity onPress={() => setPromoVisible(false)}>
+                <Icon name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalContent}>
+              <TextInput
+                placeholder="Enter Promocode"
+                placeholderTextColor="#999"
+                value={localPromo}
+                onChangeText={setLocalPromo}
+                style={styles.inputPromoCode}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+
+              <TouchableOpacity
+                style={styles.applyButton}
+                onPress={() => {
+                  setPromo(localPromo);
+                  setPromoVisible(false);
+                }}
+              >
+                <Text style={styles.applyButtonText}>APPLY</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-    </Modal>
-  );
-};
-
+      </Modal>
+    );
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-         <View style={styles.section}>
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Personal Information</Text>
+          {!editing ? (
+            <TouchableOpacity onPress={toggleEditing}>
+              <Text style={styles.editButton}>Edit</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={()=>''} disabled={fetching}>
+              <Text style={styles.saveButton}>{fetching ? 'Saving...' : 'Save'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        {editing ? (
+          <View style={styles.editContainer}>
+            <View style={styles.nameRow}>
+              <TextInput
+                style={[styles.nameInput, styles.firstNameInput]}
+                placeholder="First Name"
+                value={customerData.fname}
+                onChangeText={(text) => handleInputChange('fname', text)}
+              />
+              <TextInput
+                style={[styles.nameInput, styles.middleNameInput]}
+                placeholder="Middle"
+                value={customerData.mname}
+                onChangeText={(text) => handleInputChange('mname', text)}
+              />
+              <TextInput
+                style={[styles.nameInput, styles.lastNameInput]}
+                placeholder="Last Name"
+                value={customerData.lname}
+                onChangeText={(text) => handleInputChange('lname', text)}
+              />
+            </View>
+            
+            <TextInput
+              style={styles.infoInput}
+              placeholder="Phone Number"
+              value={customerData.phone}
+              onChangeText={(text) => handleInputChange('phone', text)}
+              keyboardType="phone-pad"
+            />
+            
+            <TextInput
+              style={styles.infoInput}
+              placeholder="Email"
+              value={customerData.email}
+              onChangeText={(text) => handleInputChange('email', text)}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            
+            <TextInput
+              style={styles.infoInput}
+              placeholder="Address"
+              value={customerData.address}
+              onChangeText={(text) => handleInputChange('address', text)}
+              multiline
+            />
+          </View>
+        ) : (
+          <View style={styles.infoContainer}>
+            <Text style={styles.nameText}>
+              {`${customerData.fname || 'First'} ${customerData.mname || ''} ${customerData.lname || 'Last'}`}
+            </Text>
+            <Text style={styles.infoText}>{customerData.phone || 'Not provided'}</Text>
+            <Text style={styles.infoText}>{customerData.email || 'Not provided'}</Text>
+            <Text style={styles.infoText}>{customerData.address || 'Not provided'}</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Vehicle Details</Text>
+        
+      </View>
+
+      {/* Rest of your existing components... */}
+      <View style={styles.section}>
         <View style={[styles.checkboxContainer, styles.selectedService]}>
           <View style={styles.serviceHeader}>
             <Icon name="check-circle" size={24} color="#4CAF50" />
-            <Text style={[styles.checkboxLabel, styles.selectedLabel]}> {details.garage 
-    ? details.garage.charAt(0).toUpperCase() + details.garage.slice(1).toLowerCase()
-    : ''} Garage</Text>
+            <Text style={[styles.checkboxLabel, styles.selectedLabel]}>
+              {details.garage ? details.garage.charAt(0).toUpperCase() + details.garage.slice(1).toLowerCase() : ''} Garage
+            </Text>
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={styles.checkboxContainer} 
+        <TouchableOpacity
+          style={styles.checkboxContainer}
           onPress={showDatePicker}
           activeOpacity={0.7}
         >
@@ -165,11 +330,10 @@ const CheckOut = () => {
       </View>
 
       {/* Offers Section */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.promoSection}
         activeOpacity={0.7}
-        onPress={()=>setPromoVisible(true)}
-     
+        onPress={() => setPromoVisible(true)}
       >
         <View style={styles.offerContainer}>
           <View style={styles.promoIcon}>
@@ -202,7 +366,7 @@ const CheckOut = () => {
       </View>
 
       {/* Proceed Button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.proceedButton}
         onPress={handleProceedToPayment}
         activeOpacity={0.8}
@@ -232,8 +396,82 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    paddingHorizontal: 16,
+    padding: 16,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  editButton: {
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  saveButton: {
+    color: '#2196F3',
+    fontWeight: '600',
+  },
+  infoContainer: {
+    marginTop: 8,
+  },
+  nameText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+    marginBottom: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  infoText: {
+    fontSize: 15,
+    color: '#555',
+    marginBottom: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  editContainer: {
+    marginTop: 8,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  nameInput: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#fff',
+  },
+  firstNameInput: {
+    flex: 0.45,
+  },
+  middleNameInput: {
+    flex: 0.25,
+  },
+  lastNameInput: {
+    flex: 0.25,
+  },
+  infoInput: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    marginBottom: 12,
+    backgroundColor: '#fff',
+  },
+  // ... (keep all your existing styles and add any new ones you need)
   selectedService: {
     backgroundColor: '#F5F9F5',
     borderLeftWidth: 4,
@@ -258,7 +496,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: 12,
   },
   checkboxLabel: {
     fontSize: 16,
@@ -268,6 +506,7 @@ const styles = StyleSheet.create({
   selectedLabel: {
     fontWeight: '600',
     color: '#000',
+    marginLeft: 8,
   },
   price: {
     fontSize: 16,
@@ -300,7 +539,6 @@ const styles = StyleSheet.create({
   offerPromoCode: {
     fontSize: 15,
     fontWeight: 'bold',
-    marginLeft:-5
   },
   offerContainer: {
     flexDirection: 'row',
@@ -380,7 +618,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: 'white',
     borderRadius: 10,
-    width: '90%',  // Slightly wider
+    width: '90%',
     paddingBottom: 20,
   },
   modalHeader: {
@@ -399,8 +637,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   inputPromoCode: {
-    height: 50,  // Proper height
-    width: '100%',  // Full width of modal content
+    height: 50,
+    width: '100%',
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
@@ -420,8 +658,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   }
-
 });
 
 export default CheckOut;
-
