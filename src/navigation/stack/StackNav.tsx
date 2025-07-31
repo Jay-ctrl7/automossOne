@@ -14,6 +14,7 @@ import ServiceDetails from '../../screen/ServiceDetails';
 import CustomerKyc from '../../component/CustomerKyc';
 import CheckOut from '../../component/CheckOut';
 import DrawerNavigator from '../drawer/DrawerNavigator';
+import PersonalDetails from '../../screen/PersonalDetails';
 
 const Stack = createNativeStackNavigator();
 
@@ -123,6 +124,14 @@ const StackNav = () => {
           title:"Checkout",
           headerShown:true,
           animation:'slide_from_right'
+        }}/>
+        <Stack.Screen
+        name='PersonalDetails'
+        component={PersonalDetails}
+        options={{
+          title:"Personal details",
+          headerShown:true,
+          animation:'slide_from_left'
         }}/>
       </Stack.Navigator>
     </NavigationContainer>

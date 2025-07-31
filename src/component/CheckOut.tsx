@@ -22,7 +22,8 @@ const CheckOut = () => {
     lname: '',
     phone: '',
     email: '',
-    address: ''
+    address: '',
+    zip: ''
   });
 
   const token = useAuthStore(state => state.token);
@@ -60,13 +61,15 @@ const CheckOut = () => {
       });
 
       if (response.data?.status === 1) {
+        console.log(response.data.data)
         setCustomerData({
           fname: response.data.data?.fname || '',
           mname: response.data.data?.mname || '',
           lname: response.data.data?.lname || '',
           phone: response.data.data?.phone || '',
           email: response.data.data?.email || '',
-          address: response.data.data?.address || ''
+          address: response.data.data?.address || '',
+          zip: response.data.data?.zip || '',
         });
       } else {
         console.log("Unexpected response format:", response.data);
@@ -79,12 +82,12 @@ const CheckOut = () => {
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setCustomerData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  // const handleInputChange = (field, value) => {
+  //   setCustomerData(prev => ({
+  //     ...prev,
+  //     [field]: value
+  //   }));
+  // };
 
   const showDatePicker = () => {
     setDatePickerVisibility(true);
@@ -129,9 +132,9 @@ const CheckOut = () => {
     });
   };
 
-  const toggleEditing = () => {
-    setEditing(!editing);
-  };
+  // const toggleEditing = () => {
+  //   setEditing(!editing);
+  // };
 
   // const saveCustomerInfo = async () => {
   //   try {
@@ -206,80 +209,24 @@ const CheckOut = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          {!editing ? (
-            <TouchableOpacity onPress={toggleEditing}>
-              <Text style={styles.editButton}>Edit</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={()=>''} disabled={fetching}>
-              <Text style={styles.saveButton}>{fetching ? 'Saving...' : 'Save'}</Text>
-            </TouchableOpacity>
-          )}
+          <Text style={styles.sectionTitle}>Personal Information: </Text>
         </View>
-        
-        {editing ? (
-          <View style={styles.editContainer}>
-            <View style={styles.nameRow}>
-              <TextInput
-                style={[styles.nameInput, styles.firstNameInput]}
-                placeholder="First Name"
-                value={customerData.fname}
-                onChangeText={(text) => handleInputChange('fname', text)}
-              />
-              <TextInput
-                style={[styles.nameInput, styles.middleNameInput]}
-                placeholder="Middle"
-                value={customerData.mname}
-                onChangeText={(text) => handleInputChange('mname', text)}
-              />
-              <TextInput
-                style={[styles.nameInput, styles.lastNameInput]}
-                placeholder="Last Name"
-                value={customerData.lname}
-                onChangeText={(text) => handleInputChange('lname', text)}
-              />
-            </View>
-            
-            <TextInput
-              style={styles.infoInput}
-              placeholder="Phone Number"
-              value={customerData.phone}
-              onChangeText={(text) => handleInputChange('phone', text)}
-              keyboardType="phone-pad"
-            />
-            
-            <TextInput
-              style={styles.infoInput}
-              placeholder="Email"
-              value={customerData.email}
-              onChangeText={(text) => handleInputChange('email', text)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            
-            <TextInput
-              style={styles.infoInput}
-              placeholder="Address"
-              value={customerData.address}
-              onChangeText={(text) => handleInputChange('address', text)}
-              multiline
-            />
+
+        <View style={styles.infoContainer}>
+          <Text style={styles.nameText}>
+            {`${customerData.fname || 'First'} ${customerData.mname || ''} ${customerData.lname || 'Last'}`}
+          </Text>
+          {customerData.address ? <Text style={styles.infoText}>{customerData.address}</Text> : null}
+          {customerData.zip ? <Text style={styles.infoText}>{customerData.zip}</Text> : null}
+          <View style={styles.contactContainer}>
+            {customerData.phone ? <Text style={styles.contactText}>{customerData.phone}</Text> : null}
+            {customerData.email ? <Text style={[styles.contactText, styles.emailText]}>{customerData.email}</Text> : null}
           </View>
-        ) : (
-          <View style={styles.infoContainer}>
-            <Text style={styles.nameText}>
-              {`${customerData.fname || 'First'} ${customerData.mname || ''} ${customerData.lname || 'Last'}`}
-            </Text>
-            <Text style={styles.infoText}>{customerData.phone || 'Not provided'}</Text>
-            <Text style={styles.infoText}>{customerData.email || 'Not provided'}</Text>
-            <Text style={styles.infoText}>{customerData.address || 'Not provided'}</Text>
-          </View>
-        )}
+        </View>
       </View>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Vehicle Details</Text>
-        
+
       </View>
 
       {/* Rest of your existing components... */}
@@ -387,59 +334,53 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-  section: {
+ section: {
     marginBottom: 20,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingBottom: 15,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
+    
   },
   sectionTitle: {
+    // fontFamily:'System',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
   },
-  editButton: {
-    color: '#4CAF50',
-    fontWeight: '600',
-  },
-  saveButton: {
-    color: '#2196F3',
-    fontWeight: '600',
-  },
   infoContainer: {
-    marginTop: 8,
+    backgroundColor: '#f9f9f9',
+    padding: 15,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   nameText: {
     fontSize: 16,
-    color: '#333',
-    fontWeight: '600',
-    marginBottom: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    fontWeight: '500',
+    marginBottom: 8,
+    color: '#222',
   },
   infoText: {
-    fontSize: 15,
-    color: '#555',
-    marginBottom: 8,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#444',
+    marginBottom: 4,
   },
-  editContainer: {
-    marginTop: 8,
+  contactContainer: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
   },
+  contactText: {
+    fontSize: 14,
+    color: '#444',
+    marginBottom: 4,
+  },
+ 
   nameRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -471,7 +412,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: '#fff',
   },
-  // ... (keep all your existing styles and add any new ones you need)
+ 
   selectedService: {
     backgroundColor: '#F5F9F5',
     borderLeftWidth: 4,
@@ -657,7 +598,11 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
-  }
+  },
+ 
+  
+ 
 });
+
 
 export default CheckOut;

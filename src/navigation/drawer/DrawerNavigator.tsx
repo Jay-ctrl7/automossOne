@@ -28,7 +28,7 @@ const DrawerNavigator = () => {
             <TouchableOpacity
               onPress={() => navigation.navigate('Notifications')}
               style={{marginRight: 15}}>
-              <Icon name="bell-fill" size={20} color="#000"/>
+              <Icon name="bell-fill" size={20} color="red"/>
             </TouchableOpacity>
           )
         })}
