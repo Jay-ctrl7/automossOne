@@ -73,7 +73,7 @@ if(!initialized)return;
     } else {
       navigation.replace('Login');
     }
-  }, 3500);
+  }, 1500);
     return () => clearTimeout(timeoutId);
 
   }, [token, navigation,initialized]);
@@ -88,10 +88,10 @@ if(!initialized)return;
           source={require('../assets/whitelogo.webp')}
           style={styles.logo}
         />
-        <Text style={styles.text}>AutoMoss</Text>
+        <Text style={styles.text}>autoMoss</Text>
       </Animated.View>
 
-      <View style={styles.animationContainer}>
+      {/* <View style={styles.animationContainer}>
         <Animated.View style={{
           transform: [{ translateX: carPosition }],
         }}>
@@ -102,7 +102,7 @@ if(!initialized)return;
             loop={false}
           />
         </Animated.View>
-      </View>
+      </View> */}
       
     </View>
   );

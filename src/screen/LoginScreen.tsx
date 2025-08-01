@@ -67,7 +67,7 @@ const Login = () => {
         </View>
         
         {/* App Name */}
-        <Text style={styles.appName}>AutoMoss</Text>
+        <Text style={styles.appName}>autoMoss</Text>
         <Text style={styles.subtitle}>Login to get started</Text>
       </View>
 
