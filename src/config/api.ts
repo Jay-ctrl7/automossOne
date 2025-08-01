@@ -14,6 +14,7 @@ export const ENDPOINTS = {
         city: `${API_BASE_URL}/master/city`,
         category: `${API_BASE_URL}/master/category`,
         banner: `${API_BASE_URL}/master/banner`,
+        manufacture:`${API_BASE_URL}/master/manufacturer`,
         packageMaster:{
             list: `${API_BASE_URL}/master/packagemaster/list`,
         }

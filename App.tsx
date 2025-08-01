@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { LogBox } from 'react-native';
+import { PaperProvider } from 'react-native-paper';
 import StackNav from './src/navigation/stack/StackNav';
 import { useAuthStore } from './src/stores/authStore';
 
@@ -15,7 +16,11 @@ function App() {
     initialize();  // hydrate auth store from AsyncStorage on app start
   }, [initialize]);
 
-  return <StackNav />;
+  return (
+    <PaperProvider>
+      <StackNav />
+    </PaperProvider>
+  );
 }
 
 export default App;

@@ -1,5 +1,5 @@
-import { View, Alert, Text, ScrollView, StyleSheet, TouchableOpacity, Platform, Modal, Button, TextInput } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import { View, Alert, Text, ScrollView, StyleSheet, TouchableOpacity, Platform, Modal, TextInput, FlatList ,Image} from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -15,7 +15,6 @@ const CheckOut = () => {
   const [promoVisible, setPromoVisible] = useState(false);
   const [promo, setPromo] = useState("");
   const [fetching, setFetching] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [customerData, setCustomerData] = useState({
     fname: '',
     mname: '',
@@ -25,6 +24,13 @@ const CheckOut = () => {
     address: '',
     zip: ''
   });
+  const [vehicleData, setVehicleData] = useState([]);
+  const [selectedVehicle, setSelectedVehicle] = useState({
+    manufacturer: null,
+    model: null
+  });
+  const [showManufacturers, setShowManufacturers] = useState(false);
+  const [showModels, setShowModels] = useState(false);
 
   const token = useAuthStore(state => state.token);
   const route = useRoute();
@@ -42,6 +48,7 @@ const CheckOut = () => {
   }, [details]);
 
   useEffect(() => {
+    fetchManufacture();
     fetchCustomerInfo();
   }, []);
 
@@ -61,7 +68,6 @@ const CheckOut = () => {
       });
 
       if (response.data?.status === 1) {
-        console.log(response.data.data)
         setCustomerData({
           fname: response.data.data?.fname || '',
           mname: response.data.data?.mname || '',
@@ -71,8 +77,6 @@ const CheckOut = () => {
           address: response.data.data?.address || '',
           zip: response.data.data?.zip || '',
         });
-      } else {
-        console.log("Unexpected response format:", response.data);
       }
     } catch (error) {
       console.error("Failed to fetch customer info:", error);
@@ -82,12 +86,41 @@ const CheckOut = () => {
     }
   };
 
-  // const handleInputChange = (field, value) => {
-  //   setCustomerData(prev => ({
-  //     ...prev,
-  //     [field]: value
-  //   }));
-  // };
+  const fetchManufacture = async () => {
+    try {
+      const response = await axios.get(ENDPOINTS.master.manufacture);
+      
+      if (response.data?.status !== 1) {
+        throw new Error(response.data?.message || 'Unexpected API response');
+      }
+
+      const normalizedData = response.data.data.map(maker => ({
+        ...maker,
+        models: maker.model || []
+      }));
+      setVehicleData(normalizedData);
+    } catch (err) {
+      console.error("Failed to fetch data:", err.message);
+      setVehicleData([]);
+    }
+  };
+
+  const handleManufacturerSelect = (manufacturer) => {
+    setSelectedVehicle({
+      manufacturer,
+      model: null
+    });
+    setShowManufacturers(false);
+    setShowModels(true);
+  };
+
+  const handleModelSelect = (model) => {
+    setSelectedVehicle(prev => ({
+      ...prev,
+      model
+    }));
+    setShowModels(false);
+  };
 
   const showDatePicker = () => {
     setDatePickerVisibility(true);
@@ -100,8 +133,7 @@ const CheckOut = () => {
   const handleConfirm = (date) => {
     const hours = date.getHours();
     if (hours < 6 || hours >= 22) {
-      alert('Please select time between 6 AM to 10 PM');
-      setDatePickerVisibility(false);
+      Alert.alert('Error', 'Please select time between 6 AM to 10 PM');
       return;
     }
     setSelectedDate(date);
@@ -122,43 +154,21 @@ const CheckOut = () => {
 
   const handleProceedToPayment = () => {
     if (!selectedDate) {
-      alert('Please select a date and time');
+      Alert.alert('Error', 'Please select a date and time');
       return;
     }
+    if (!selectedVehicle.manufacturer || !selectedVehicle.model) {
+      Alert.alert('Error', 'Please select your vehicle details');
+      return;
+    }
+    
     navigation.navigate('Payment', {
       serviceDetails: details,
       selectedDate,
-      totalAmount
+      totalAmount,
+      vehicleDetails: selectedVehicle
     });
   };
-
-  // const toggleEditing = () => {
-  //   setEditing(!editing);
-  // };
-
-  // const saveCustomerInfo = async () => {
-  //   try {
-  //     setFetching(true);
-  //     const response = await axios.post(ENDPOINTS.auth.updatecustomer, customerData, {
-  //       headers: {
-  //         'Authorization': `Bearer ${token}`,
-  //         'Accept': 'application/json',
-  //       }
-  //     });
-
-  //     if (response.data?.status === 1) {
-  //       Alert.alert("Success", "Profile updated successfully");
-  //       setEditing(false);
-  //     } else {
-  //       Alert.alert("Error", response.data?.message || "Failed to update profile");
-  //     }
-  //   } catch (error) {
-  //     console.error("Failed to update customer info:", error);
-  //     Alert.alert("Error", "Failed to update profile");
-  //   } finally {
-  //     setFetching(false);
-  //   }
-  // };
 
   const PromoModal = () => {
     const [localPromo, setLocalPromo] = useState(promo);
@@ -209,7 +219,7 @@ const CheckOut = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Personal Information: </Text>
+          <Text style={styles.sectionTitle}>Personal Information</Text>
         </View>
 
         <View style={styles.infoContainer}>
@@ -224,12 +234,114 @@ const CheckOut = () => {
           </View>
         </View>
       </View>
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Vehicle Details</Text>
+        
+        {/* Manufacturer Selection */}
+        <TouchableOpacity
+          style={styles.vehicleSelection}
+          onPress={() => setShowManufacturers(true)}
+        >
+          <Text style={selectedVehicle.manufacturer ? styles.selectedText : styles.placeholderText}>
+            {selectedVehicle.manufacturer?.name || 'Select Manufacturer'}
+          </Text>
+          <Icon name="chevron-right" size={20} color="#999" />
+        </TouchableOpacity>
 
+        {/* Model Selection (only if manufacturer selected) */}
+        {selectedVehicle.manufacturer && (
+          <TouchableOpacity
+            style={[styles.vehicleSelection, { marginTop: 10 }]}
+            onPress={() => setShowModels(true)}
+          >
+            <Text style={selectedVehicle.model ? styles.selectedText : styles.placeholderText}>
+              {selectedVehicle.model?.name || 'Select Model'}
+            </Text>
+            <Icon name="chevron-right" size={20} color="#999" />
+          </TouchableOpacity>
+        )}
+
+        {/* Manufacturer Selection Modal */}
+        <Modal
+          visible={showManufacturers}
+          transparent={true}
+          animationType="slide"
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.selectionModal}>
+              <Text style={styles.modalTitle}>Select Manufacturer</Text>
+              <FlatList
+                data={vehicleData}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.selectionItem}
+                    onPress={() => handleManufacturerSelect(item)}
+                  >
+                    <Text>{item.name}</Text>
+                    {item.thumb && (
+                      <Image 
+                        source={{ uri: item.thumb }} 
+                        style={styles.thumbnail}
+                      />
+                    )}
+                  </TouchableOpacity>
+                )}
+              />
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowManufacturers(false)}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Model Selection Modal */}
+        <Modal
+          visible={showModels}
+          transparent={true}
+          animationType="slide"
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.selectionModal}>
+              <Text style={styles.modalTitle}>Select Model</Text>
+              {selectedVehicle.manufacturer?.models?.length > 0 ? (
+                <FlatList
+                  data={selectedVehicle.manufacturer.models}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.selectionItem}
+                      onPress={() => handleModelSelect(item)}
+                    >
+                      <Text>{item.name}</Text>
+                      {item.thumb && (
+                        <Image 
+                          source={{ uri: item.thumb }} 
+                          style={styles.thumbnail}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                />
+              ) : (
+                <Text style={styles.noModelsText}>No models available</Text>
+              )}
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowModels(false)}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </View>
 
-      {/* Rest of your existing components... */}
+      {/* Service Selection */}
       <View style={styles.section}>
         <View style={[styles.checkboxContainer, styles.selectedService]}>
           <View style={styles.serviceHeader}>
@@ -320,6 +432,7 @@ const CheckOut = () => {
       >
         <Text style={styles.proceedButtonText}>Proceed to Payment</Text>
       </TouchableOpacity>
+      
       <PromoModal />
     </ScrollView>
   );
@@ -334,7 +447,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
- section: {
+  section: {
     marginBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
@@ -342,10 +455,8 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     marginBottom: 10,
-    
   },
   sectionTitle: {
-    // fontFamily:'System',
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
@@ -380,39 +491,9 @@ const styles = StyleSheet.create({
     color: '#444',
     marginBottom: 4,
   },
- 
-  nameRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+  emailText: {
+    color: '#1E88E5',
   },
-  nameInput: {
-    height: 40,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    backgroundColor: '#fff',
-  },
-  firstNameInput: {
-    flex: 0.45,
-  },
-  middleNameInput: {
-    flex: 0.25,
-  },
-  lastNameInput: {
-    flex: 0.25,
-  },
-  infoInput: {
-    height: 40,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    marginBottom: 12,
-    backgroundColor: '#fff',
-  },
- 
   selectedService: {
     backgroundColor: '#F5F9F5',
     borderLeftWidth: 4,
@@ -562,6 +643,13 @@ const styles = StyleSheet.create({
     width: '90%',
     paddingBottom: 20,
   },
+  selectionModal: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    width: '90%',
+    maxHeight: '70%',
+    padding: 16,
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -573,6 +661,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 16,
   },
   modalContent: {
     padding: 20,
@@ -599,10 +688,53 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
- 
-  
- 
+  vehicleSelection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    backgroundColor: '#fff',
+  },
+  selectedText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: '#999',
+  },
+  selectionItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  thumbnail: {
+    width: 40,
+    height: 40,
+    borderRadius: 4,
+  },
+  closeButton: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  noModelsText: {
+    textAlign: 'center',
+    padding: 16,
+    color: '#666',
+  },
 });
-
 
 export default CheckOut;
