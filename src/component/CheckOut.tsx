@@ -317,13 +317,19 @@ const CheckOut = () => {
                       style={styles.selectionItem}
                       onPress={() => handleModelSelect(item)}
                     >
+                      <View style={styles.itemContent}>
+
                       <Text>{item.name}</Text>
-                      {item.thumb && (
+                      {item.thumb ? (
                         <Image 
                           source={{ uri: item.thumb }} 
                           style={styles.thumbnail}
                         />
-                      )}
+                      ):
+                      (<View style={styles.defaultIconContainer}>
+                        <Icon name="directions-car" size={24} color="#666"/>
+                      </View>)}
+                        </View>
                     </TouchableOpacity>
                   )}
                 />
@@ -735,6 +741,19 @@ const styles = StyleSheet.create({
     padding: 16,
     color: '#666',
   },
+  itemContent:{
+    flexDirection:'row',
+    alignItems:'center',
+    flex:1
+  },
+  defaultIconContainer:{
+    width:40,
+    height:40,
+    borderRadius:2,
+    backgroundColor:'#f0f0f0',
+    justifyContent:'center',
+    alignItems:'center',
+  }
 });
 
 export default CheckOut;

@@ -15,6 +15,7 @@ import CustomerKyc from '../../component/CustomerKyc';
 import CheckOut from '../../component/CheckOut';
 import DrawerNavigator from '../drawer/DrawerNavigator';
 import PersonalDetails from '../../screen/PersonalDetails';
+import LocationService from '../drawer/LocationService';
 
 const Stack = createNativeStackNavigator();
 
@@ -27,6 +28,7 @@ const StackNav = () => {
         backgroundColor="lightblue" 
         barStyle="dark-content"
       />
+      <LocationService/>
       <Stack.Navigator
         initialRouteName="Splash"  // Explicit initial route
         screenOptions={{

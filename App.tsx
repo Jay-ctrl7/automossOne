@@ -3,6 +3,7 @@ import { LogBox } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import StackNav from './src/navigation/stack/StackNav';
 import { useAuthStore } from './src/stores/authStore';
+import { LocationProvider } from './src/context/LocationContext';
 
 // Optional: Suppress specific warnings
 LogBox.ignoreLogs([
@@ -18,7 +19,9 @@ function App() {
 
   return (
     <PaperProvider>
-      <StackNav />
+      <LocationProvider>
+        <StackNav />
+      </LocationProvider>
     </PaperProvider>
   );
 }
