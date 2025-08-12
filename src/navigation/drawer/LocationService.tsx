@@ -1,62 +1,44 @@
-// src/components/LocationService.tsx
 import React, { useEffect } from 'react';
 import { PermissionsAndroid, Platform } from 'react-native';
 import Geolocation from 'react-native-geolocation-service';
 import { useLocation } from '../../context/LocationContext';
 import Config from 'react-native-config';
 
-
 const LocationService = () => {
-  const { setCity } = useLocation();
+  const { setLocation } = useLocation();
 
-  const getOSMCity = async (lat: number, lon: number) => {
+  const getGoogleLocationDetails = async (lat: number, lng: number) => {
     try {
+      const apiKey = Config.GOOGLE_MAPS_API_KEY;
+      if (!apiKey) throw new Error('Google Maps API key not configured');
+      
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
-        {
-          headers: {
-            'User-Agent': 'YourAppName/1.0 (your@email.com)'
-          }
-        }
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
       );
+
       const data = await response.json();
-      return data.address?.city || data.address?.town || 'Unknown location';
+      if (data.status !== 'OK') {
+        throw new Error(data.error_message || 'Geocoding failed');
+      }
+
+      const address = data.results[0];
+      const extractComponent = (type: string) => 
+        address.address_components.find((c: any) => c.types.includes(type))?.long_name;
+
+      return {
+        coordinates: { latitude: lat, longitude: lng },
+        city: extractComponent('locality') || extractComponent('administrative_area_level_2'),
+        address: address.formatted_address,
+        country: extractComponent('country'),
+        district: extractComponent('administrative_area_level_2'),
+        state: extractComponent('administrative_area_level_1'),
+        postalCode: extractComponent('postal_code')
+      };
     } catch (error) {
-      console.error('Error fetching city:', error);
-      return 'Location unavailable';
+      console.error('Google Maps API error:', error);
+      throw error;
     }
   };
-
-
-const getGoogleCity = async (lat: number, lng: number): Promise<string> => {
-  try {
-    const apiKey = Config.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) throw new Error('Google Maps API key not configured');
-    console.log("API Key: ",apiKey);
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
-    );
-
-    const data = await response.json();
-
-    if (data.status !== 'OK') {
-      throw new Error(data.error_message || 'Geocoding failed');
-    }
-
-    // Extract city from address components
-    const address = data.results[0];
-    const cityComponent = address.address_components.find(
-      (component: any) => 
-        component.types.includes('locality') || 
-        component.types.includes('administrative_area_level_2')
-    );
-
-    return cityComponent?.long_name || address.formatted_address || 'Unknown location';
-  } catch (error) {
-    console.error('Google Maps API error:', error);
-    return 'Location unavailable';
-  }
-};
 
   const requestLocationPermission = async () => {
     if (Platform.OS === 'android') {
@@ -81,32 +63,63 @@ const getGoogleCity = async (lat: number, lng: number): Promise<string> => {
   };
 
   useEffect(() => {
-    const fetchLocation = async () => {
-      const hasPermission = await requestLocationPermission();
-      if (!hasPermission) return;
+  let isMounted = true;
+  let watchId: number;
 
-      Geolocation.getCurrentPosition(
-        async (position) => {
-          const cityName = await 
-          // getOSMCity(
-            getGoogleCity(
+  const fetchLocation = async () => {
+    const hasPermission = await requestLocationPermission();
+    if (!hasPermission || !isMounted) return;
+
+    // Use watchPosition for better control
+    watchId = Geolocation.watchPosition(
+      async (position) => {
+        try {
+          const locationDetails = await getGoogleLocationDetails(
             position.coords.latitude,
             position.coords.longitude
           );
-          setCity(cityName);
-        },
-        (error) => {
-          console.warn('Location error:', error);
-          setCity('Location unavailable');
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-      );
-    };
+          if (isMounted) {
+            setLocation({
+              ...locationDetails,
+              error: undefined,
+              timestamp: Date.now()
+            });
+          }
+        } catch (error) {
+          if (isMounted) {
+            setLocation({
+              city: 'Location unavailable',
+              error: error instanceof Error ? error.message : 'Failed to get location details'
+            });
+          }
+        }
+      },
+      (error) => {
+        if (isMounted) {
+          setLocation({
+            city: 'Location unavailable',
+            error: error.message
+          });
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        distanceFilter: 50, // Only update when moving >50 meters
+        interval: 10000,
+        fastestInterval: 5000
+      }
+    );
+  };
 
-    fetchLocation();
-  }, [setCity]);
+  fetchLocation();
 
-  return null; // This component doesn't render anything
+  return () => {
+    isMounted = false;
+    if (watchId) Geolocation.clearWatch(watchId);
+  };
+}, [setLocation]);
+
+  return null;
 };
 
 export default LocationService;

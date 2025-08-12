@@ -12,7 +12,7 @@ import { useLocation } from '../../context/LocationContext';
 const Drawer = createDrawerNavigator();
 
 const DrawerNavigator = () => {
-  const { city } = useLocation();
+  const { location, loading } = useLocation();
 
   return (
     <Drawer.Navigator
@@ -33,7 +33,7 @@ const DrawerNavigator = () => {
           drawerIcon: ({ color, size }) => (
             <Icon name="home" size={size} color={color} />
           ),
-          title: city || 'My Location', // Using context city
+          title: location.city || 'My Location', // Using context city
           headerRight: () => (
             <TouchableOpacity
               onPress={() => navigation.navigate('Notifications')}

@@ -12,7 +12,7 @@ import Accessories from '../../component/Accessories';
 import { StatusBar } from 'react-native';
 import ServiceDetails from '../../screen/ServiceDetails';
 import CustomerKyc from '../../component/CustomerKyc';
-import CheckOut from '../../component/CheckOut';
+import CheckOut from '../../screen/CheckOut';
 import DrawerNavigator from '../drawer/DrawerNavigator';
 import PersonalDetails from '../../screen/PersonalDetails';
 import LocationService from '../drawer/LocationService';

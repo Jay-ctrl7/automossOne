@@ -1,21 +1,29 @@
-import CustomerKyc from "../component/CustomerKyc";
 
-export const API_BASE_URL = 'https://ssdemo.in/local_automoss/automoss_api';
+export const API_BASE_URL = 'https://automoss.in/local_automoss/automoss_api';
 
 export const ENDPOINTS = {
-    auth:{
+    auth: {
         customerLogin: `${API_BASE_URL}/auth/customerlogin_init`,
         customerVerifyOtp: `${API_BASE_URL}/auth/customer_verifyotp`,
-        Customer_Kycupdate:`${API_BASE_URL}/auth/customer_Kycupdate`,
-        customerinfo:`${API_BASE_URL}/auth/customerinfo`,
+        Customer_Kycupdate: `${API_BASE_URL}/auth/customer_Kycupdate`,
+        customerinfo: `${API_BASE_URL}/auth/customerinfo`,
+    },
+    car: {
+        savedCar: `${API_BASE_URL}/car/CustomerCar/CustomerCars`
+    },
+    customer: {
+        jobcardInsert: `${API_BASE_URL}/customer/jobcard/insert`
     },
     master: {
         assessoriesList: `${API_BASE_URL}/master/products/list`,
         city: `${API_BASE_URL}/master/city`,
         category: `${API_BASE_URL}/master/category`,
         banner: `${API_BASE_URL}/master/banner`,
-        manufacture:`${API_BASE_URL}/master/manufacturer`,
-        packageMaster:{
+        manufacture: `${API_BASE_URL}/master/manufacturer`,
+        fuel: `${API_BASE_URL}/master/fuel`,
+        carSize: `${API_BASE_URL}/master/carsize`,
+
+        packageMaster: {
             list: `${API_BASE_URL}/master/packagemaster/list`,
         }
     },

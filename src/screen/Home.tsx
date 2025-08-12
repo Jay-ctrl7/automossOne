@@ -1,5 +1,5 @@
 import { View, ScrollView, StyleSheet, Animated, TouchableOpacity, Image, Text } from 'react-native';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef,useEffect } from 'react';
 import TopCarServices from '../component/TopCarServices';
 import Banner from '../component/Banner';
 import Accessories from '../component/Accessories';
@@ -12,6 +12,12 @@ const Home = () => {
   const [expanded, setExpanded] = useState(false);
   const animation = useRef(new Animated.Value(0)).current;
 
+
+  useEffect(()=>{
+//uselocation
+
+  },[])
+
   const toggleMenu = () => {
     const toValue = expanded ? 0 : 1;
     Animated.spring(animation, {
@@ -21,6 +27,7 @@ const Home = () => {
     }).start();
     setExpanded(!expanded);
   };
+
 
   const handleServiceLiveBooking = () => {
     toggleMenu();
