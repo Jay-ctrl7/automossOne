@@ -12,7 +12,9 @@ export const ENDPOINTS = {
         savedCar: `${API_BASE_URL}/car/CustomerCar/CustomerCars`
     },
     customer: {
-        jobcardInsert: `${API_BASE_URL}/customer/jobcard/insert`
+        jobcardInsert: `${API_BASE_URL}/customer/jobcard/insert`,
+        createBookingId:`${API_BASE_URL}/customer/Servicebookings/createbooking`,
+        serviceBooking: `${API_BASE_URL}/customer/Servicebookings/booking`
     },
     master: {
         assessoriesList: `${API_BASE_URL}/master/products/list`,

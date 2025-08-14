@@ -1,15 +1,17 @@
-import { View, Alert, Text, ScrollView, StyleSheet, TouchableOpacity, Button, Platform, Modal, TextInput, FlatList, Image, ActivityIndicator } from 'react-native';
+import { View, Alert, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, FlatList, Image, ActivityIndicator, } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import Icon1 from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../stores/authStore';
 import axios from 'axios';
 import { ENDPOINTS } from '../config/api';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
-import Config from 'react-native-config';
-import LocationSearch from '../component/LocationSearch';
 import { useLocation } from '../context/LocationContext';
+import CheckBox from '@react-native-community/checkbox';
+import LocationSearch from '../component/LocationSearch';
+import RazorpayCheckout from 'react-native-razorpay';
+import Config from 'react-native-config';
 
 // Reusable Thumbnail Component with fallback
 const Thumbnail = React.memo(({ uri, defaultIcon, iconSize = 24, iconColor = '#666', style }) => {
@@ -63,6 +65,8 @@ const Thumbnail = React.memo(({ uri, defaultIcon, iconSize = 24, iconColor = '#6
 
 const CheckOut = () => {
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(null);
+  const [selectedOnlyDate, setSelectedOnlyDate] = useState(null);
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [taxAmount, setTaxAmount] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
@@ -90,12 +94,23 @@ const CheckOut = () => {
   const [loadingManufacturers, setLoadingManufacturers] = useState(false);
   const [manufacturerError, setManufacturerError] = useState(null);
   const [savedVehicle, setSavedVehicle] = useState([]);
-  const [vehicle, setVehicle] = useState([]);
   const [loadingCarSizes, setLoadingCarSizes] = useState(false);
   const [carSizeData, setCarSizeData] = useState([]);
   const [carSizeError, setCarSizeError] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [coordinates, setCoordinates] = useState(null);
+  const [custAddress, setCustAddress] = useState("");
+  const [briefDescription, setBriefDescription] = useState("");
+  const [bookingId, setBookingId] = useState(null);
+  const [isHomeService, setIsHomeService] = useState(false);
+  const [selectedOption, setSelectedOption] = useState('online');
+  const [selectedFuelType, setSelectedFuelType] = useState(null);
+  const [fuelTypeData, setFuelTypeData] = useState([]);
+  const [loadingFuelTypes, setLoadingFuelTypes] = useState(false);
+  const [fuelTypeError, setFuelTypeError] = useState(null);
+  const [showFuelTypes, setShowFuelTypes] = useState(false);
+  const [razorpaySuccessKeyId, setRazorpaySuccessKeyId] = useState(Config.RAZORPAY_KEY_ID_TEST);
 
   const token = useAuthStore(state => state.token);
   const route = useRoute();
@@ -113,11 +128,22 @@ const CheckOut = () => {
   };
 
   useEffect(() => {
+    if (!selectedLocation) {
+      setCoordinates(location?.coordinates || null);
+      setCustAddress(location?.address || "");
+    } else {
+      setCoordinates(selectedLocation?.coordinates || null);
+      setCustAddress(selectedLocation?.address || "");
+    }
+  }, [selectedLocation, location]);
+
+  useEffect(() => {
     if (details && details.displayPrice) {
       const price = parseFloat(details.displayPrice) || 0;
       const calculatedTax = price * 0.18;
       setTaxAmount(calculatedTax);
       setTotalAmount(price + calculatedTax);
+      console.log("Details:", details);
     }
   }, [details]);
 
@@ -125,6 +151,7 @@ const CheckOut = () => {
     fetchManufacture();
     fetchCustomerInfo();
     fetchCarSize();
+    fetchFuelType();
   }, []);
 
   useEffect(() => {
@@ -132,6 +159,52 @@ const CheckOut = () => {
       fetchSavedCar();
     }
   }, [customerData.id]);
+
+  useEffect(() => {
+    if (details.id) {
+      BookingIdCreate();
+    }
+  }, [details.id]);
+
+  const paymentMethods = [
+    {
+      id: 'online',
+      name: 'Online Payment',
+      icon: 'credit-card',
+      description: 'Pay with credit/debit card or UPI'
+    },
+    {
+      id: 'cod',
+      name: 'Cash on Delivery',
+      icon: 'cash',
+      description: 'Pay when you receive your order'
+    }
+  ];
+
+  const BookingIdCreate = async () => {
+    try {
+      if (!token) {
+        Alert.alert("Error", "Please login again");
+        return;
+      }
+      const pId = `${details.id}`;
+      const response = await axios.post(ENDPOINTS.customer.createBookingId, {
+        xid: `${pId}_6`
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        }
+      });
+      if (response.data?.status === 1) {
+        setBookingId(response.data?.booking_id)
+      } else {
+        console.log("Error", response.data?.message || "Failed to create bookingID");
+      }
+    } catch (error) {
+      console.log("Error", "Failed to create booking ID");
+    }
+  };
 
   const fetchCustomerInfo = async () => {
     try {
@@ -165,6 +238,7 @@ const CheckOut = () => {
       setFetching(false);
     }
   };
+
   const fetchManufacture = async () => {
     try {
       setLoadingManufacturers(true);
@@ -175,27 +249,18 @@ const CheckOut = () => {
         throw new Error(response.data?.message || 'Unexpected API response');
       }
 
-      // Process the manufacturer data
-      const normalizedData = response.data.data.map(maker => {
-        console.log('Manufacturer:', maker.name, 'Models:', maker.model);
-
-        // Ensure models is properly formatted
-        const models = (maker.model || []).map(model => ({
+      const normalizedData = response.data.data.map(maker => ({
+        ...maker,
+        id: maker.id?.toString(),
+        models: (maker.model || []).map(model => ({
           id: model.id?.toString(),
           name: model.name || 'Unknown Model',
           thumb: model.thumb || '',
           manufacturerId: maker.id
-        }));
-
-        return {
-          ...maker,
-          id: maker.id?.toString(),
-          models: models
-        };
-      });
+        }))
+      }));
 
       setVehicleData(normalizedData);
-      setVehicle(normalizedData);
     } catch (err) {
       setManufacturerError(err.message);
       setVehicleData([]);
@@ -203,18 +268,17 @@ const CheckOut = () => {
       setLoadingManufacturers(false);
     }
   };
+
   const fetchCarSize = async () => {
     try {
       setLoadingCarSizes(true);
       setCarSizeError(null);
       const response = await axios.get(ENDPOINTS.master.carSize);
-      console.log('Car Size Response:', response.data);
 
       if (response.data?.status !== 1) {
         throw new Error(response.data?.message || 'Unexpected API response');
       }
 
-      // Process the car size data
       const normalizedData = response.data.data.map(size => ({
         id: size.id?.toString(),
         name: size.name || 'Unknown Size',
@@ -255,7 +319,6 @@ const CheckOut = () => {
             brandName: manufacturer?.name || 'Unknown Brand',
             modelName: model?.name || vehicle.name || 'Unknown Model',
             carSizeName: carSize?.name || 'Unknown Size',
-            // Add other details you want to display
           };
         });
         setSavedVehicle(enhancedVehicles);
@@ -267,9 +330,31 @@ const CheckOut = () => {
     }
   };
 
-  const handleManufacturerSelect = (manufacturer) => {
-    console.log('Selected Manufacturer Models:', manufacturer.models);
+  const fetchFuelType = async () => {
+    try {
+      setLoadingFuelTypes(true);
+      setFuelTypeError(null);
+      const response = await axios.get(ENDPOINTS.master.fuel);
 
+      if (response.data?.status !== 1) {
+        throw new Error(response.data?.message || 'Unexpected API response');
+      }
+
+      const normalizedData = response.data.data.map(type => ({
+        id: type.id?.toString(),
+        name: type.name || 'Unknown Fuel Type',
+      }));
+
+      setFuelTypeData(normalizedData);
+    } catch (err) {
+      setFuelTypeError(err.message);
+      setFuelTypeData([]);
+    } finally {
+      setLoadingFuelTypes(false);
+    }
+  };
+
+  const handleManufacturerSelect = (manufacturer) => {
     setSelectedVehicle(prev => ({
       ...prev,
       id: null,
@@ -277,20 +362,18 @@ const CheckOut = () => {
         id: manufacturer.id,
         name: manufacturer.name,
         thumb: manufacturer.thumb,
-        models: manufacturer.models // Include models in manufacturer object
+        models: manufacturer.models
       },
       model: null
     }));
     setShowManufacturers(false);
 
-    // Check if models exist
     if (manufacturer.models && manufacturer.models.length > 0) {
       setShowModels(true);
     } else {
       Alert.alert('No Models', 'This manufacturer has no models available');
     }
   };
-
 
   const handleModelSelect = (model) => {
     setSelectedVehicle(prev => ({
@@ -308,6 +391,7 @@ const CheckOut = () => {
   const handleSavedVehicleSelect = (vehicle) => {
     const manufacturer = vehicleData.find(v => v.id === vehicle.car_brand?.toString());
     const model = manufacturer?.models?.find(m => m.id === vehicle.car_model?.toString());
+    const fuelType = fuelTypeData.find(f => f.id === vehicle.fuel_type?.toString());
 
     setSelectedVehicle({
       id: vehicle.id,
@@ -318,14 +402,15 @@ const CheckOut = () => {
       } : null,
       model: model ? {
         id: model.id,
-        name: model.name, // Use the model name from manufacturer data
+        name: model.name,
         thumb: model.thumb
       } : {
         id: vehicle.car_model,
-        name: vehicle.name, // Fallback to vehicle name if model not found
+        name: vehicle.name,
         thumb: vehicle.thumb
       }
     });
+    setSelectedFuelType(fuelType || null);
   };
 
   const showDatePicker = () => setDatePickerVisibility(true);
@@ -338,11 +423,18 @@ const CheckOut = () => {
       return;
     }
     setSelectedDate(date);
+    setSelectedTime(date.toLocaleTimeString('en-US'));
+    setSelectedOnlyDate(date.toLocaleDateString('en-US'));
     hideDatePicker();
   };
+
   const handleLocationSelect = (location) => {
-    console.log('Selected Location:', location);
     setSelectedLocation(location);
+  };
+
+  const handleFuelTypeSelect = (fuelType) => {
+    setSelectedFuelType(fuelType);
+    setShowFuelTypes(false);
   };
 
   const formatDate = (date) => {
@@ -357,6 +449,130 @@ const CheckOut = () => {
     });
   };
 
+  const handleQuantityChange = (change) => {
+    const newQuantity = quantity + change;
+    if (newQuantity < 1) return;
+    setQuantity(newQuantity);
+  };
+
+  const initiateRazorpayPayment = async (data) => {
+    const totalPrice = data?.order_details?.total_price;
+    const testKey = Config.RAZORPAY_KEY_ID_TEST;
+    const testKey1 = 'rzp_test_JOC0wRKpLH1cVW';
+    console.log("Razorpay Key ID:", testKey);
+    var options = {
+      description: 'Service Payment',
+      image: 'https://i.imgur.com/3g7nmJC.jpg',
+      currency: 'INR',
+      key: testKey, // Replace with your actual key
+      amount: totalPrice * 100, // Convert to paise
+      name: 'Auto Service',
+      prefill: {
+        email: customerData.email || '',
+        contact: customerData.phone || '',
+        name: `${customerData.fname} ${customerData.lname}`.trim()
+      },
+      theme: { color: '#53a20e' }
+    };
+
+    try {
+      const data = await RazorpayCheckout.open(options);
+      // Payment success
+      Alert.alert(`Success: ${data.razorpay_payment_id}`);
+      console.log('Payment successful:', data);
+      setRazorpaySuccessKeyId(data.razorpay_payment_id);
+      // Navigate to success screen or handle success
+      navigation.navigate('SuccessMsg', {
+        BookingResponse: {
+          bookingId: bookingId,
+          paymentId: data.razorpay_payment_id,
+          userData: {
+            carManufacturer: selectedVehicle.manufacturer?.name,
+            carModel: selectedVehicle.model?.name,
+            fuelType: selectedFuelType?.name,
+            service: details?.name,
+            garage: details?.garage,
+            date: selectedOnlyDate,
+            time: selectedTime,
+            totalAmount:totalPrice
+          }
+        },
+      });
+
+    } catch (error) {
+      // Payment failed
+      Alert.alert(`Error: ${error.code} | ${error.description}`);
+      setRazorpaySuccessKeyId(null);
+      console.error('Payment failed:', error);
+      // Handle payment failure
+    }
+  };
+
+  const postServiceBooking = async () => {
+    if (!token) {
+      Alert.alert("Error", "Please login again");
+      return;
+    }
+    try {
+      const userObj = {
+        carManufacturer: selectedVehicle.manufacturer?.name,
+        carModel: selectedVehicle.model?.name,
+        fuelType: selectedFuelType?.name,
+        service: details?.name,
+        garage: details?.garage,
+      }
+      const lat = coordinates?.latitude || 0;
+      const lon = coordinates?.longitude || 0;
+      const manufacturer = selectedVehicle.manufacturer?.id || 0;
+      const model = selectedVehicle.model?.id || 0;
+      const fuelType = selectedFuelType?.id || 0;
+      const payment = selectedOption;
+      const response = await axios.post(`${ENDPOINTS.customer.serviceBooking}/${bookingId}`, {
+        booking_id: bookingId,
+        apply_burning: true,
+        is_homeservice: isHomeService,
+        scedule_date: selectedOnlyDate,
+        scedule_time: selectedTime,
+        description: briefDescription,
+        cust_address: custAddress,
+        cust_lat: lat,
+        cust_lon: lon,
+        car_manufacturer_id: manufacturer,
+        car_model_id: model,
+        fuel_type_id: fuelType,
+        payment_id: payment
+
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        }
+      });
+      if (response.data?.status === 1) {
+        // Booking successful
+        console.log('Booking successful:', response.data);
+        if (selectedOption === 'online') {
+          // navigation.navigate('Online Payment', {
+          //  BookingResponse: response.data,
+          //  userData: userObj
+          // });
+          initiateRazorpayPayment(response.data);
+        }
+        else {
+          navigation.navigate('Cash Payment', {
+            BookingResponse: response.data,
+            userData: userObj,
+
+          });
+        }
+      } else {
+        throw new Error(response.data?.message || 'Unexpected API response');
+      }
+    } catch (error) {
+      console.error('Error booking service:', error);
+    }
+  };
+
   const handleProceedToPayment = () => {
     if (!selectedDate) {
       Alert.alert('Error', 'Please select a date and time');
@@ -366,19 +582,31 @@ const CheckOut = () => {
       Alert.alert('Error', 'Please select your vehicle details');
       return;
     }
-    navigation.navigate('Payment', {
+    if (!selectedFuelType) {
+      Alert.alert('Error', 'Please select fuel type');
+      return;
+    }
+    postServiceBooking();
+
+    console.log('Payment Details:', {
+      bookingId,
       serviceDetails: details,
-      selectedDate,
+      selectedDate: selectedOnlyDate,
+      selectedTime,
+      isHomeService,
+      briefDescription,
+      coordinates,
+      vehicleDetails: selectedVehicle,
+      fuelType: selectedFuelType,
+      quantity,
       totalAmount,
-      vehicleDetails: selectedVehicle
+      selectedVehicle
     });
   };
-  const handleQuantityChange = (change) => {
-    if (change < 0 && quantity <= 1) return; // Prevent going below 1
-    setQuantity(prev => prev + change);
-  };
+
   const PromoModal = () => {
     const [localPromo, setLocalPromo] = useState(promo);
+
     return (
       <Modal
         animationType="fade"
@@ -430,26 +658,25 @@ const CheckOut = () => {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Service Summary</Text>
           <View style={styles.serviceItem}>
-            {/* <Thumbnail 
-              uri={details.thumb} 
-              defaultIcon="build" 
-              style={styles.serviceImage} 
-            /> */}
-            <Image source={{ uri: details.thumb }} style={styles.serviceImage} />
+            <Thumbnail
+              uri={details.thumb}
+              defaultIcon="build"
+              style={styles.serviceImage}
+            />
             <View style={styles.serviceInfo}>
               <Text style={styles.serviceName}>{details.name}</Text>
-             
             </View>
             <View style={styles.quantityContainer}>
-              <TouchableOpacity 
-                style={styles.quantityButton} 
+              <TouchableOpacity
+                style={styles.quantityButton}
                 onPress={() => handleQuantityChange(-1)}
+                disabled={quantity <= 1}
               >
                 <Text style={styles.quantityButtonText}>-</Text>
               </TouchableOpacity>
               <Text style={styles.quantityValue}>{quantity}</Text>
-              <TouchableOpacity 
-                style={styles.quantityButton} 
+              <TouchableOpacity
+                style={styles.quantityButton}
                 onPress={() => handleQuantityChange(1)}
               >
                 <Text style={styles.quantityButtonText}>+</Text>
@@ -519,7 +746,7 @@ const CheckOut = () => {
         {/* Vehicle Selection */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Vehicle Details</Text>
-          
+
           {/* Saved Vehicles */}
           {savedVehicle.length > 0 && (
             <>
@@ -591,6 +818,30 @@ const CheckOut = () => {
               <Icon name="chevron-right" size={20} color="#999" />
             </TouchableOpacity>
           )}
+
+          <Text style={[styles.subtitle, { marginTop: 10 }]}>Select Fuel Type</Text>
+          <TouchableOpacity
+            style={styles.selectionButton}
+            onPress={() => setShowFuelTypes(true)}
+          >
+            <Text style={selectedFuelType ? styles.selectedText : styles.placeholderText}>
+              {selectedFuelType?.name || 'Select Fuel Type'}
+            </Text>
+            <Icon name="chevron-right" size={20} color="#999" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Brief Description */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Brief Description</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Enter brief description"
+            placeholderTextColor="#999"
+            value={briefDescription}
+            onChangeText={setBriefDescription}
+            multiline
+          />
         </View>
 
         {/* Location Selection */}
@@ -631,15 +882,67 @@ const CheckOut = () => {
           </View>
         </TouchableOpacity>
 
-        {/* Price Breakdown */}
+        {/* Home service checkbox */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Price Breakdown</Text>
+          <Text style={styles.sectionTitle}>Home Service</Text>
+          <View style={styles.checkboxContainer}>
+            <CheckBox
+              value={isHomeService}
+              onValueChange={setIsHomeService}
+              tintColors={{ true: 'red', false: '#ccc' }}
+            />
+            <Text style={styles.checkboxLabel}>Request home service</Text>
+          </View>
+        </View>
+
+        {/* Payment Mode */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Select Payment Method</Text>
+
+          {paymentMethods.map((method) => (
+            <TouchableOpacity
+              key={method.id}
+              onPress={() => setSelectedOption(method.id)}
+              style={[
+                styles.optionContainer,
+                selectedOption === method.id && styles.selectedOption
+              ]}
+            >
+              <View style={styles.radioButton}>
+                {selectedOption === method.id && (
+                  <View style={styles.radioButtonSelected} />
+                )}
+              </View>
+
+              <View style={styles.methodInfo}>
+                <View style={styles.methodHeader}>
+                  <Icon1
+                    name={method.icon}
+                    size={22}
+                    color={selectedOption === method.id ? 'red' : '#a79393ff'}
+                  />
+                  <Text style={[
+                    styles.methodName,
+                    selectedOption === method.id && styles.selectedText
+                  ]}>
+                    {method.name}
+                  </Text>
+                </View>
+                <Text style={styles.methodDescription}>{method.description}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Price Summary */}
+        {/* <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Price Summary</Text>
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>Service Cost</Text>
             <Text style={styles.priceValue}>{formatCurrency(details.displayPrice)}</Text>
           </View>
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Taxes & Fees</Text>
+            <Text style={styles.priceLabel}>Tax (18%)</Text>
             <Text style={styles.priceValue}>{formatCurrency(taxAmount)}</Text>
           </View>
           <View style={styles.divider} />
@@ -647,7 +950,7 @@ const CheckOut = () => {
             <Text style={styles.totalLabel}>Total Amount</Text>
             <Text style={styles.totalValue}>{formatCurrency(totalAmount)}</Text>
           </View>
-        </View>
+        </View> */}
       </ScrollView>
 
       {/* Fixed Proceed Button */}
@@ -681,7 +984,7 @@ const CheckOut = () => {
             </View>
             {loadingManufacturers ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#6C63FF" />
+                <ActivityIndicator size="large" color="red" />
               </View>
             ) : manufacturerError ? (
               <View style={styles.errorContainer}>
@@ -767,6 +1070,53 @@ const CheckOut = () => {
                     : "Please select a manufacturer first"}
                 </Text>
               </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Fuel Type Selection Modal */}
+      <Modal
+        visible={showFuelTypes}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowFuelTypes(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.fullModal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Fuel Type</Text>
+              <TouchableOpacity onPress={() => setShowFuelTypes(false)}>
+                <Icon name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            {loadingFuelTypes ? (
+              <ActivityIndicator size="large" color="red" />
+            ) : fuelTypeError ? (
+              <View style={styles.emptyState}>
+                <Icon name="error-outline" size={40} color="#ccc" />
+                <Text style={styles.emptyStateText}>{fuelTypeError}</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={fuelTypeData}
+                keyExtractor={(item) => `fuelType_${item.id}`}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.listItem}
+                    onPress={() => handleFuelTypeSelect(item)}
+                  >
+                    <Text style={styles.listItemText}>{item.name}</Text>
+                    <Icon name="chevron-right" size={20} color="#999" />
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Icon name="error-outline" size={40} color="#ccc" />
+                    <Text style={styles.emptyStateText}>No fuel types available</Text>
+                  </View>
+                }
+              />
             )}
           </View>
         </View>
@@ -907,7 +1257,7 @@ const styles = StyleSheet.create({
   },
   selectedVehicle: {
     backgroundColor: '#F0F5FF',
-    borderColor: '#6C63FF',
+    borderColor: 'red',
     borderWidth: 1,
   },
   savedVehicleThumb: {
@@ -982,6 +1332,61 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 2,
   },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  checkboxLabel: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#333',
+  },
+  optionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#F8F8FA',
+    marginBottom: 8,
+  },
+  selectedOption: {
+    borderColor: 'red',
+    borderWidth: 1,
+  },
+  radioButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'red',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  radioButtonSelected: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'red',
+  },
+  methodInfo: {
+    flex: 1,
+  },
+  methodHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  methodName: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 8,
+  },
+  methodDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1011,6 +1416,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEE',
     marginVertical: 8,
   },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#EEE',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
   footer: {
     position: 'absolute',
     bottom: 0,
@@ -1022,13 +1435,13 @@ const styles = StyleSheet.create({
     borderTopColor: '#EEE',
   },
   proceedButton: {
-    backgroundColor: '#6C63FF',
+    backgroundColor: 'red',
     borderRadius: 8,
     padding: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#6C63FF',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -1094,7 +1507,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   primaryButton: {
-    backgroundColor: '#6C63FF',
+    backgroundColor: 'red',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
@@ -1168,6 +1581,14 @@ const styles = StyleSheet.create({
   },
   visible: {
     display: 'flex',
+  },
+  thumbnailLoading: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  defaultIconContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

@@ -16,6 +16,9 @@ import CheckOut from '../../screen/CheckOut';
 import DrawerNavigator from '../drawer/DrawerNavigator';
 import PersonalDetails from '../../screen/PersonalDetails';
 import LocationService from '../drawer/LocationService';
+import CashPayment from '../../screen/CashPayment';
+import OnlinePayment from '../../screen/OnlinePayment';
+import SuccessMsg from '../../screen/SuccessMsg';
 
 const Stack = createNativeStackNavigator();
 
@@ -135,6 +138,31 @@ const StackNav = () => {
           headerShown:true,
           animation:'slide_from_left'
         }}/>
+        <Stack.Screen
+        name='Cash Payment'
+        component={CashPayment}
+        options={{
+          title:"Cash Payment",
+          headerShown:true,
+          animation:'slide_from_right'
+        }}/>
+        <Stack.Screen
+        name='Online Payment'
+        component={OnlinePayment}
+        options={{
+          title:"Online Payment",
+          headerShown:true,
+          animation:'slide_from_right'
+        }}/>
+        <Stack.Screen
+        name='SuccessMsg'
+        component={SuccessMsg}
+        options={{
+          title:"Success Message",
+          headerShown:false,
+          animation:'slide_from_right'
+        }}/>
+
       </Stack.Navigator>
     </NavigationContainer>
  
