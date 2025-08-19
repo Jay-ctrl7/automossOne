@@ -24,7 +24,9 @@ const CashPayment = () => {
             car_manufacturer_id: 'N/A',
             car_model_id: 'N/A',
             description: '',
-            is_homeservice: false
+            is_homeservice: false,
+            cust_lat:'N/A',
+            cust_lon:'N/A'
         },
         order_details = {
             quote_price: 0,
@@ -33,11 +35,28 @@ const CashPayment = () => {
             transaction_fee: 0
         }
     } = BookingResponse;
+
+        const {
+        service = 'N/A',
+        garage = 'N/A',
+        carManufacturer = 'N/A',
+        carModel = 'N/A',
+        fuelType = 'N/A',
+        details = {}
+    } = userData || {};
+
+    const garageId = details?.garage_id || 'N/A';
+
     const totalAmount = order_details.quote_price + order_details.gst_amount + order_details.platform_fee + order_details.transaction_fee;
 
     useEffect(() => {
         console.log('Complete Booking Response:', BookingResponse);
-    }, [BookingResponse]);
+        console.log('User Data:', userData);
+        console.log('Data Saved:', data_saved);
+        console.log("userData:", userData);
+        console.log("Garage ID:", garageId);
+
+    }, [BookingResponse, userData, data_saved, garageId]);
 
     // Format date function
     const formatDate = (dateString) => {
@@ -176,9 +195,16 @@ const CashPayment = () => {
             {/* Action Buttons */}
             <TouchableOpacity
                 style={[styles.button, { backgroundColor: '#4CAF50' }]}
-                onPress={() => navigation.navigate('home')}
+                onPress={() => navigation.navigate('ShowMap',{
+                    coordinates: {
+                        latitude: data_saved.cust_lat || 0,
+                        longitude: data_saved.cust_lon || 0
+                    },
+                    address: data_saved.cust_address || 'Address not available',
+                    garageId: garageId
+                })}
             >
-                <Text style={styles.buttonText}>Back to Home</Text>
+                <Text style={styles.buttonText}>Show Map</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

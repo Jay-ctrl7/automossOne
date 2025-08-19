@@ -520,6 +520,7 @@ const CheckOut = () => {
         fuelType: selectedFuelType?.name,
         service: details?.name,
         garage: details?.garage,
+        details: details,
       }
       const lat = coordinates?.latitude || 0;
       const lon = coordinates?.longitude || 0;

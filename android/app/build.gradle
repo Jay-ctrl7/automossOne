@@ -92,6 +92,11 @@ android {
             GOOGLE_MAPS_API_KEY: project.env.get("GOOGLE_MAPS_API_KEY")
         ]
     }
+     configurations.all {
+        resolutionStrategy {
+            force "com.google.android.gms:play-services-location:$playServicesLocationVersion"
+        }
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -124,8 +129,7 @@ dependencies {
     } else {
         implementation jscFlavor
     }
-    implementation "com.google.android.gms:play-services-location:21.1.0"
-
+ implementation "com.google.android.gms:play-services-location:$playServicesLocationVersion"
 }
 
 

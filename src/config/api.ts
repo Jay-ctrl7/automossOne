@@ -16,6 +16,9 @@ export const ENDPOINTS = {
         createBookingId:`${API_BASE_URL}/customer/Servicebookings/createbooking`,
         serviceBooking: `${API_BASE_URL}/customer/Servicebookings/booking`
     },
+    garage: {
+        list: `${API_BASE_URL}/garage/Garage/list`
+    },
     master: {
         assessoriesList: `${API_BASE_URL}/master/products/list`,
         city: `${API_BASE_URL}/master/city`,
