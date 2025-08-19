@@ -19,7 +19,7 @@ import LocationService from '../drawer/LocationService';
 import CashPayment from '../../screen/CashPayment';
 import OnlinePayment from '../../screen/OnlinePayment';
 import SuccessMsg from '../../screen/SuccessMsg';
-
+import ShowMap from '../../component/ShowMap'; // Import the ShowMap component
 const Stack = createNativeStackNavigator();
 
 const StackNav = () => {
@@ -162,6 +162,16 @@ const StackNav = () => {
           headerShown:false,
           animation:'slide_from_right'
         }}/>
+        <Stack.Screen
+          name='ShowMap'
+          component={ShowMap}
+          options={{
+            title: 'Map Screen',
+            headerShown: true, // Show header for ScreenMap
+            animation: 'slide_from_right' // Custom animation for this screen
+          }}
+        />
+        
 
       </Stack.Navigator>
     </NavigationContainer>

@@ -55,7 +55,7 @@ const LocationService = () => {
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.warn('Permission request error:', err);
+        console.error('Permission request error:', err);
         return false;
       }
     }

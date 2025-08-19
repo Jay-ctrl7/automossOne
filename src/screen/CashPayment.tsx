@@ -3,7 +3,6 @@ import React, { useEffect } from 'react';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LottieView from 'lottie-react-native';
-import MapScreen from '../component/MapScreen';
 
 const CashPayment = () => {
     const navigation = useNavigation();
@@ -90,7 +89,7 @@ const CashPayment = () => {
                 <Text style={styles.successTitle}>{message}</Text>
                 <Text style={styles.bookingId}>Booking ID: {booking_id}</Text>
             </View>
-            {/* <MapScreen /> */}
+           
             {/* Booking Details Card */}
             <View style={styles.card}>
                 <Text style={styles.cardTitle}>Service Details</Text>
@@ -177,7 +176,7 @@ const CashPayment = () => {
             {/* Action Buttons */}
             <TouchableOpacity
                 style={[styles.button, { backgroundColor: '#4CAF50' }]}
-                onPress={() => navigation.navigate('Home')}
+                onPress={() => navigation.navigate('home')}
             >
                 <Text style={styles.buttonText}>Back to Home</Text>
             </TouchableOpacity>
