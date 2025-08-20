@@ -1,4 +1,4 @@
-import { View, Alert, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, FlatList, Image, ActivityIndicator, } from 'react-native';
+import { View, Alert, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, FlatList, Image, ActivityIndicator, Dimensions } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Icon1 from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -14,7 +14,7 @@ import RazorpayCheckout from 'react-native-razorpay';
 import Config from 'react-native-config';
 
 // Reusable Thumbnail Component with fallback
-const Thumbnail = React.memo(({ uri, defaultIcon, iconSize = 24, iconColor = '#666', style }) => {
+const Thumbnail = React.memo(({ uri, defaultIcon, iconSize = 30, iconColor = 'red', style }) => {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -62,6 +62,26 @@ const Thumbnail = React.memo(({ uri, defaultIcon, iconSize = 24, iconColor = '#6
     </View>
   );
 });
+const SearchHeader = ({ title, searchQuery, setSearchQuery, onClose }) => (
+  <View style={styles.modalHeader}>
+    <Text style={styles.modalTitle}>{title}</Text>
+    <View style={styles.searchContainer}>
+      <Icon name="search" size={20} color="#999" style={styles.searchIcon} />
+      <TextInput
+        placeholder="Search..."
+        placeholderTextColor="#999"
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        style={styles.searchInput}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+      <TouchableOpacity onPress={onClose}>
+        <Icon name="close" size={24} color="#666" />
+      </TouchableOpacity>
+    </View>
+  </View>
+);
 
 const CheckOut = () => {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -112,6 +132,12 @@ const CheckOut = () => {
   const [showFuelTypes, setShowFuelTypes] = useState(false);
   const [razorpaySuccessKeyId, setRazorpaySuccessKeyId] = useState(Config.RAZORPAY_KEY_ID_TEST);
 
+
+  const [searchQueryManufacturer, setSearchQueryManufacturer] = useState('');
+  const [searchQueryModel, setSearchQueryModel] = useState('');
+  const [searchQueryFuel, setSearchQueryFuel] = useState('');
+  const [numColumns, setNumColumns] = useState(3);
+
   const token = useAuthStore(state => state.token);
   const route = useRoute();
   const navigation = useNavigation();
@@ -127,6 +153,17 @@ const CheckOut = () => {
     }).format(amount);
   };
 
+  const filteredManufacturers = vehicleData.filter(item =>
+    item.name.toLowerCase().includes(searchQueryManufacturer.toLowerCase())
+  );
+
+  const filteredModels = selectedVehicle.manufacturer?.models?.filter(item =>
+    item.name.toLowerCase().includes(searchQueryModel.toLowerCase())
+  ) || [];
+
+  const filteredFuelTypes = fuelTypeData.filter(item =>
+    item.name.toLowerCase().includes(searchQueryFuel.toLowerCase())
+  );
   useEffect(() => {
     if (!selectedLocation) {
       setCoordinates(location?.coordinates || null);
@@ -494,7 +531,7 @@ const CheckOut = () => {
             garage: details?.garage,
             date: selectedOnlyDate,
             time: selectedTime,
-            totalAmount:totalPrice
+            totalAmount: totalPrice
           }
         },
       });
@@ -659,15 +696,20 @@ const CheckOut = () => {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Service Summary</Text>
           <View style={styles.serviceItem}>
-            <Thumbnail
+            {/* <Thumbnail
               uri={details.thumb}
               defaultIcon="build"
               style={styles.serviceImage}
+            /> */}
+            <Image
+              source={{ uri: details.thumb }}
+              style={styles.serviceImage}
+              resizeMode="cover"
             />
             <View style={styles.serviceInfo}>
               <Text style={styles.serviceName}>{details.name}</Text>
             </View>
-            <View style={styles.quantityContainer}>
+            {/* <View style={styles.quantityContainer}>
               <TouchableOpacity
                 style={styles.quantityButton}
                 onPress={() => handleQuantityChange(-1)}
@@ -682,7 +724,7 @@ const CheckOut = () => {
               >
                 <Text style={styles.quantityButtonText}>+</Text>
               </TouchableOpacity>
-            </View>
+            </View>  */}
             <Text style={styles.servicePrice}>{formatCurrency(details.displayPrice)}</Text>
           </View>
           <Text style={styles.serviceGarage}>Garage: {details.garage ? details.garage.charAt(0).toUpperCase() + details.garage.slice(1).toLowerCase() : ''}</Text>
@@ -969,6 +1011,7 @@ const CheckOut = () => {
       <PromoModal />
 
       {/* Manufacturer Selection Modal */}
+      {/* Manufacturer Selection Modal - Grid Layout */}
       <Modal
         visible={showManufacturers}
         transparent={true}
@@ -977,12 +1020,14 @@ const CheckOut = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.fullModal}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Manufacturer</Text>
-              <TouchableOpacity onPress={() => setShowManufacturers(false)}>
-                <Icon name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.modalHeaderTitle}>Select Manufacturer</Text>
+            <SearchHeader
+              // title="Select Manufacturer"
+              searchQuery={searchQueryManufacturer}
+              setSearchQuery={setSearchQueryManufacturer}
+              onClose={() => setShowManufacturers(false)}
+            />
+
             {loadingManufacturers ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="red" />
@@ -1000,26 +1045,35 @@ const CheckOut = () => {
               </View>
             ) : (
               <FlatList
-                data={vehicleData}
+                data={filteredManufacturers}
                 keyExtractor={(item) => `manufacturer_${item.id}`}
+                numColumns={numColumns}
+                columnWrapperStyle={styles.gridRow}
+                contentContainerStyle={styles.gridContainer}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    style={styles.listItem}
+                    style={styles.gridItem}
                     onPress={() => handleManufacturerSelect(item)}
                   >
                     <Thumbnail
                       uri={item.thumb}
                       defaultIcon="directions-car"
-                      style={styles.listThumbnail}
+                      style={styles.gridThumbnail}
                     />
-                    <Text style={styles.listItemText}>{item.name}</Text>
-                    <Icon name="chevron-right" size={20} color="#999" />
+                    <Text style={styles.gridItemText} numberOfLines={2}>
+                      {item.name}
+                    </Text>
                   </TouchableOpacity>
                 )}
                 ListEmptyComponent={
                   <View style={styles.emptyState}>
-                    <Icon name="error-outline" size={40} color="#ccc" />
-                    <Text style={styles.emptyStateText}>No manufacturers available</Text>
+                    <Icon name="search-off" size={40} color="#ccc" />
+                    <Text style={styles.emptyStateText}>
+                      {searchQueryManufacturer
+                        ? `No manufacturers found for "${searchQueryManufacturer}"`
+                        : "No manufacturers available"
+                      }
+                    </Text>
                   </View>
                 }
               />
@@ -1037,38 +1091,47 @@ const CheckOut = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.fullModal}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Model</Text>
-              <TouchableOpacity onPress={() => setShowModels(false)}>
-                <Icon name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            {selectedVehicle.manufacturer?.models?.length > 0 ? (
+            <Text style={styles.modalHeaderTitle}>Select Model</Text>
+            <SearchHeader
+              // title={`Select ${selectedVehicle.manufacturer?.name || ''} Model`}
+              searchQuery={searchQueryModel}
+              setSearchQuery={setSearchQueryModel}
+              onClose={() => setShowModels(false)}
+            />
+
+            {filteredModels.length > 0 ? (
               <FlatList
-                data={selectedVehicle.manufacturer.models}
+                data={filteredModels}
                 keyExtractor={(item) => `model_${item.id}`}
+                numColumns={numColumns}
+                columnWrapperStyle={styles.gridRow}
+                contentContainerStyle={styles.gridContainer}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    style={styles.listItem}
+                    style={styles.gridItem}
                     onPress={() => handleModelSelect(item)}
                   >
                     <Thumbnail
                       uri={item.thumb}
                       defaultIcon="directions-car"
-                      style={styles.listThumbnail}
+                      style={styles.gridThumbnail}
                     />
-                    <Text style={styles.listItemText}>{item.name}</Text>
-                    <Icon name="chevron-right" size={20} color="#999" />
+                    <Text style={styles.gridItemText} numberOfLines={2}>
+                      {item.name}
+                    </Text>
                   </TouchableOpacity>
                 )}
               />
             ) : (
               <View style={styles.emptyState}>
-                <Icon name="error-outline" size={40} color="#ccc" />
+                <Icon name="search-off" size={40} color="#ccc" />
                 <Text style={styles.emptyStateText}>
-                  {selectedVehicle.manufacturer
-                    ? "No models available for this manufacturer"
-                    : "Please select a manufacturer first"}
+                  {searchQueryModel
+                    ? `No models found for "${searchQueryModel}"`
+                    : selectedVehicle.manufacturer
+                      ? "No models available for this manufacturer"
+                      : "Please select a manufacturer first"
+                  }
                 </Text>
               </View>
             )}
@@ -1085,12 +1148,15 @@ const CheckOut = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.fullModal}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Fuel Type</Text>
-              <TouchableOpacity onPress={() => setShowFuelTypes(false)}>
-                <Icon name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.modalHeaderTitle}>Select Fuel Type</Text>
+            <SearchHeader
+              // title="Select Fuel Type"
+              searchQuery={searchQueryFuel}
+              setSearchQuery={setSearchQueryFuel}
+              onClose={() => setShowFuelTypes(false)}
+            />
+            
+
             {loadingFuelTypes ? (
               <ActivityIndicator size="large" color="red" />
             ) : fuelTypeError ? (
@@ -1100,21 +1166,31 @@ const CheckOut = () => {
               </View>
             ) : (
               <FlatList
-                data={fuelTypeData}
+                data={filteredFuelTypes}
                 keyExtractor={(item) => `fuelType_${item.id}`}
+                numColumns={numColumns}
+                columnWrapperStyle={styles.gridRow}
+                contentContainerStyle={styles.gridContainer}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    style={styles.listItem}
+                    style={styles.gridItem}
                     onPress={() => handleFuelTypeSelect(item)}
                   >
-                    <Text style={styles.listItemText}>{item.name}</Text>
-                    <Icon name="chevron-right" size={20} color="#999" />
+                    <Icon name="local-gas-station" size={30} color="#666" />
+                    <Text style={styles.gridItemText} numberOfLines={2}>
+                      {item.name}
+                    </Text>
                   </TouchableOpacity>
                 )}
                 ListEmptyComponent={
                   <View style={styles.emptyState}>
-                    <Icon name="error-outline" size={40} color="#ccc" />
-                    <Text style={styles.emptyStateText}>No fuel types available</Text>
+                    <Icon name="search-off" size={40} color="#ccc" />
+                    <Text style={styles.emptyStateText}>
+                      {searchQueryFuel
+                        ? `No fuel types found for "${searchQueryFuel}"`
+                        : "No fuel types available"
+                      }
+                    </Text>
                   </View>
                 }
               />
@@ -1218,19 +1294,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     backgroundColor: '#F8F8FA',
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#EEE',
   },
   selectedText: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
     fontSize: 16,
     color: '#333',
   },
   placeholderText: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
     fontSize: 16,
     color: '#999',
   },
@@ -1281,8 +1357,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   vehicleThumb: {
-    width: 24,
-    height: 24,
+    width: 34,
+    height: 34,
     borderRadius: 4,
   },
   locationInfo: {
@@ -1478,14 +1554,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#EEE',
   },
-  modalTitle: {
+  modalHeaderTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
+    marginLeft: 8,
+    marginTop: 8,
+
+  },
+  modalTitle: {
+    
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 8,
+    
   },
   modalContent: {
     paddingTop: 16,
@@ -1590,6 +1677,60 @@ const styles = StyleSheet.create({
   defaultIconContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // New styles for grid layout and search
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginTop: 12,
+    flex: 1,
+    marginLeft: 16,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 16,
+    color: '#333',
+  },
+  gridContainer: {
+    padding: 16,
+  },
+  gridRow: {
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  gridItem: {
+    width: (Dimensions.get('window').width - 64) / 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    backgroundColor: '#F8F8FA',
+    borderRadius: 12,
+    marginHorizontal: 4,
+  },
+  gridThumbnail: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  gridItemText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#333',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  selectedGridItem: {
+    backgroundColor: '#F0F5FF',
+    borderColor: 'red',
+    borderWidth: 1,
   },
 });
 
