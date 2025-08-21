@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
-import { LogBox } from 'react-native';
+import { LogBox,View } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import StackNav from './src/navigation/stack/StackNav';
 import { useAuthStore } from './src/stores/authStore';
 import { LocationProvider } from './src/context/LocationContext';
 import * as Sentry from '@sentry/react-native';
+import NetworkStatus from'./src/component/NetworkStatus';
 
 Sentry.init({
   dsn: 'https://3f922d44910aa78f8be040ef0bd922c1@o4509864012546048.ingest.de.sentry.io/4509864015233104',
@@ -38,11 +39,14 @@ function App() {
   }, [initialize]);
 
   return (
-    <PaperProvider>
-      <LocationProvider>
-        <StackNav />
-      </LocationProvider>
-    </PaperProvider>
+    <View style={{ flex: 1 }}>
+      <PaperProvider>
+        <LocationProvider>
+          <StackNav />
+        </LocationProvider>
+      </PaperProvider>
+      <NetworkStatus />
+    </View>
   );
 }
 
